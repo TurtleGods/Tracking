@@ -33,7 +33,7 @@
 ```yaml
 /
 ├── src/
-│ ├── Api/
+│ ├── Mayo.Platform.Tracklix.WebAPI/
 │ │ ├── Controllers/
 │ │ │ ├── EventsController.cs
 │ │ │ └── CompaniesController.cs
@@ -51,14 +51,14 @@
 │ │ │ ├── BatchRequestDto.cs
 │ │ │ └── QueryResponseDto.cs
 │ │ ├── Program.cs
-│ │ └── Api.csproj
+│ │ └── Mayo.Platform.Tracklix.WebAPI.csproj
 │ └── ...
 ├── tests/
-│ ├── Api.Tests/
+│ ├── Mayo.Platform.Tracklix.WebAPI.Tests/
 │ │ ├── EventStoreTests.cs
 │ │ ├── CursorTests.cs
 │ │ └── IngestionRulesTests.cs
-│ └── Api.Tests.csproj
+│ └── Mayo.Platform.Tracklix.WebAPI.Tests.csproj
 ├── build/
 │ └── Dockerfile
 ├── config/
@@ -168,7 +168,7 @@ RUN dotnet publish -c Release -o /app
 FROM mcr.microsoft.com/dotnet/aspnet:10 AS runtime
 WORKDIR /app
 COPY --from=build /app .
-ENTRYPOINT ["dotnet", "Api.dll"]
+ENTRYPOINT ["dotnet", "Mayo.Platform.Tracklix.WebAPI.dll"]
 ```
 
 ---

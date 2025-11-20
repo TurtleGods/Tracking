@@ -5,7 +5,7 @@
 
 ### 第一階段：基礎架構 (Phase 1)
 1. **Project Setup** - 建立 .NET 10 專案基礎
-   - [ ] 建立 .NET 10 ASP.NET Core 專案 (`Api`)
+   - [ ] 建立 .NET 10 ASP.NET Core 專案 (`Mayo.Platform.Tracklix.WebAPI`)
    - [ ] 建立 Solution (`Project.sln`)
    - [ ] 設定目錄結構（Controllers / Services / Models / Dtos）
    - [ ] 建立 `appsettings.Development.json`
