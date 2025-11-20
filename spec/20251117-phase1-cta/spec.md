@@ -20,33 +20,18 @@
 
 後端提供 API 接受前端批次事件，**最多 10 筆**。
 
-每筆事件需包含：
-
-- `productId`
-- `companyId`
-- `employeeId`
-- `sessionId`
-- `screenId`
-- `eventType`
-- `timestamp`（Epoch milliseconds）
-- `eventId`（前端產生）
-- `metadata`（依 eventType 定義必填）
-    - `enter_screen`：需包含 `view`
-    - `click`：需包含 `componentId`
-        
-- `deviceInfo`
-    - `deviceType`（`Android` | `IOS` | `Browser`）
-    - `os`（`Android` | `IOS` | `Browser`）
-        
+每筆事件結構定義請參考：
+- [Domain Model](domain-model.md)
+- [Data Model](data-model.md)
 
 ### ✔ Ingestion Rules
 
-1. **批次內 eventId 重複 → 拒絕後者，接受第一筆。**
-2. **跨批次 eventId 重複 → 接受，但標記 `flags.duplicate_eventId=true`。**
+1. **批次內 timestamp-CompanyId-EmployeeId-DeviceId 重複 → 拒絕後者，接受第一筆。**
+2. **跨批次 timestamp-CompanyId-EmployeeId-DeviceId 重複 → 接受，最後不會被記錄**
 3. **metadata 缺少 eventType 必填欄位 → 拒絕。**
 4. **未知的 eventType / deviceType / os → 接受，並於 flags 標示，如 `flags.unknown_eventType=true`。**
 5. **未知欄位（多餘 metadata 或 deviceInfo 欄位） → 接受，但標記 `flags.extra_fields=true`。**
-6. **事件需依前端送入順序紀錄（server 產生 seqId 時保持原順序）。**
+6. **事件需依前端送入順序紀錄。**
 7. **Raw events 為 append-only，不可修改。**
 
 ---
@@ -62,23 +47,23 @@
 
 ## 2. 查詢功能（Analytics Query）
 
-## 2.1 事件歷程查詢（Cursor-based）
+## 2.1 事件歷程查詢（Key-based）
 
 查詢僅回傳 **append-only raw events（含 flags）**，保持儲存原樣。
 
 ### API 形式：
 
-- 查詢所有公司事件  
+- 查詢所有公司事件
     `GET /events?t={cursor}&size=100`
-    
-- 查詢某公司事件  
+
+- 查詢某公司事件
     `GET /companies/{companyId}/events?t={cursor}&size=100`
-    
 
-### ✔ Opaque Cursor 規格
 
-- 格式強制為：`{timestamp}|{opaqueUUID}`
-- 伺服器不解析 opaqueUUID 的語義，只視為不透明 token。
+### ✔ Key-based Cursor 規格
+
+- 格式強制為：`{timestamp}|{companyId}|{employeeId}|{deviceId}`
+- 伺服器將查詢 <= timestamp 的指定客戶的所有裝置資訊 by 分頁大小
 - 若 cursor 無效 / 不存在：
     - **自動 fallback 從頭開始**（不回 400）。
 
@@ -88,7 +73,7 @@
 
 {
   "events": [/* raw events as stored */],
-  "next_cursor": "1768888894123|opaque123",
+  "next_cursor": "1768888894123|company123|employee456|device789",
   "size": 100
 }
 
@@ -108,9 +93,8 @@
 
 **部分成功 Response（HTTP 200）**
 
-- `accepted[i].seqId`：伺服器遞增流水號
 - `rejected[i].error_code` 必須符合 **全大寫 + 底線** 命名格式
-    
+
 
 **範例：**
 
@@ -118,8 +102,7 @@
 {
   "accepted": [
     {
-      "eventId": "uuid-123",
-      "seqId": 1001
+      "eventId": "uuid-123"
     }
   ],
   "rejected": [

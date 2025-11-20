@@ -1,11 +1,11 @@
-# plan.md — Technical Implementation Plan  
+# plan.md — Technical Implementation Plan
 (derived from spec.md)
 
 ## 1. 技術選型（Tech Stack Decisions）
 
 ### 1.1 Runtime & Framework
 - **API Server**：使用 **.NET 10 (ASP.NET Core)** 建構後端 API
-- **API Style**：使用 **Controllers**（非 Minimal API）  
+- **API Style**：使用 **Controllers**（非 Minimal API）
   理由：更清楚的路由結構、較符合企業常見模式、易於擴充版本化。
 
 ### 1.2 Hosting & Container
@@ -23,7 +23,7 @@
 - 高併發的資料持久層設計不在 POC 範圍，但 Key 和 Cursor 的技術規格將確保易於後續調整
 
 ### 1.4 Logging & Validation
-- 使用 ASP.NET Core 內建 logging（可選擇 Console logger）。  
+- 使用 ASP.NET Core 內建 logging（可選擇 Console logger）。
 - 使用 `System.ComponentModel.DataAnnotations` + 自訂驗證邏輯達成 spec 裡的 ingestion rules。
 
 ---
@@ -40,7 +40,7 @@
 │ │ ├── Services/
 │ │ │ ├── IEventStore.cs
 │ │ │ ├── InMemoryEventStore.cs
-│ │ │ ├── CursorService.cs
+│ │ │ ├── EventCursorHandler.cs
 │ │ │ └── ValidationService.cs
 │ │ ├── Models/
 │ │ │ ├── Event.cs
@@ -66,6 +66,11 @@
 └── Project.sln
 ```
 
+## 3. Domain and Data Models
+
+- [Domain Model](domain-model.md)
+- [Data Model](data-model.md)
+
 ---
 
 ## 3. 系統設計（System Design）
@@ -76,50 +81,52 @@
 Pipeline：
 
 BatchRequest → Validate events → Apply ingestion rules →
-Assign seqId → Append to in-memory store →
+Append to in-memory store →
 Produce { accepted[], rejected[] }
 ```
 
 Validation / Rules 實作：
 
-1. **批次內 eventId 重複**  
-   → 使用 HashSet 檢查 batch-level duplicates  
-2. **跨批次 eventId 重複**  
-   → 查 in-memory store index  
-   → 若撞到，flags = `duplicate_eventId=true`  
-3. **metadata 缺少必要欄位**  
-   → 依 eventType 動態檢查  
-4. **未知 eventType / deviceType / os**  
-   → 設 flags，例如：`unknown_eventType=true`  
-5. **多餘欄位**  
-   → 比對 schema，出現未定義欄位 → `extra_fields=true`  
-6. **seqId 遞增 & 依送入順序記錄**
-   → 全域自增 long counter（需考慮併發安全，使用 Interlocked 或鎖定機制）
-7. **append-only**  
+1. **批次內 timestamp-CompanyId-EmployeeId-DeviceId 重複**
+   → 使用 HashSet 檢查 batch-level duplicates with format "{timestamp}-{companyId}-{employeeId}-{deviceId}"
+2. **跨批次 timestamp-CompanyId-EmployeeId-DeviceId 重複**
+   → 查 in-memory store index
+   → 若撞到，直接忽略事件
+3. **metadata 缺少必要欄位**
+   → 依 eventType 動態檢查
+4. **未知 eventType / deviceType / os**
+   → 設 flags，例如：`unknown_eventType=true`
+5. **多餘欄位**
+   → 比對 schema，出現未定義欄位 → `extra_fields=true`
+6. **事件需依前端送入順序紀錄。**
+7. **append-only**
    → EventStore 不提供更新 API，只能新增。
 
 ```yaml
 Response Model：
 {
-accepted: [{ eventId, seqId }],
+accepted: [{ eventId }],
 rejected: [{ eventId, error_code, message }]
 }
 ```
 
 ### 3.2 查詢（GET /events, GET /companies/{id}/events）
 
-Cursor-based Query：
+Key-based Query：
 
-- Cursor 格式：`{timestamp}|{opaqueUUID}`
-- 若 cursor 無效 → 自動 fallback: 從最舊 seqId 開始。
+- Query 條件格式：`{timestamp}|{companyId}|{employeeId}|{deviceId}`
+- 系統將查詢 <= timestamp 的指定客戶的所有裝置資訊 by 分頁大小
+- 若 cursor 無效 → 自動 fallback: 從最舊事件開始。
 - Query Service 實作：
-  - 依 seqId 排序（in-memory 已按 append 順序）
-  - 推算下一個 cursor：取**最後一筆事件的 timestamp** + 新產生的 opaque UUID。
+  - 依 eventId (timestamp-CompanyId-EmployeeId-DeviceId) 排序
+  - 推算下一個 cursor：取**最後一筆事件的 timestamp|companyId|employeeId|deviceId**。
 - 回傳事件需包含儲存時的 flags。
 
 ---
 
 ## 4. API 設計概要
+
+詳細的 API 規格請參考 [OpenAPI Specification](openapi-spec.yaml)。
 
 ### 4.1 `POST /events/batch`
 - Body: `{ events: [<max 10>] }`
@@ -138,10 +145,10 @@ Cursor-based Query：
 
 | Component | Responsibility |
 |----------|----------------|
-| IEventStore | Event storage interface、seqId 管理、查詢（定義契約） |
-| InMemoryEventStore | Append-only raw event storage、seqId 管理、查詢（POC 實作） |
+| IEventStore | Event storage interface、查詢（定義契約） |
+| InMemoryEventStore | Append-only raw event storage、查詢（POC 實作） |
 | ValidationService | Ingestion Rules 驗證邏輯 |
-| CursorService | Cursor encode/decode、fallback 處理 |
+| EventCursorHandler | Cursor encode/decode、fallback 處理 |
 | EventsController | batch ingestion endpoint |
 | CompaniesController | company-based query endpoint |
 
@@ -176,7 +183,6 @@ ENTRYPOINT ["dotnet", "Api.dll"]
 - Cursor logic
 - EventStore interface contract tests
 - EventStore append-only 行為
-- 併發安全測試（seqId 生成、事件寫入）
 
 ### 7.2 Integration Tests
 - POST /events/batch full flow
@@ -187,7 +193,7 @@ ENTRYPOINT ["dotnet", "Api.dll"]
 
 ## 8. 非功能需求 Mapping
 
-- In-memory only → deterministic reset  
-- 不需 auth → Controllers 開放  
-- 不需要高效能 → 不做 queue 或 DB  
+- In-memory only → deterministic reset
+- 不需 auth → Controllers 開放
+- 不需要高效能 → 不做 queue 或 DB
 - Multi-tenant via companyId → Query filter 實作即可
