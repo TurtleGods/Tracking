@@ -1,0 +1,439 @@
+using System.Data;
+using System.Data.Common;
+using ClickHouse.Client.ADO;
+using Tracking.Api.Models;
+
+namespace Tracking.Api.Data;
+
+public interface ITrackingRepository
+{
+    Task<IEnumerable<MainEntity>> GetMainEntitiesAsync(int limit, CancellationToken cancellationToken);
+    Task InsertMainEntityAsync(MainEntity entity, CancellationToken cancellationToken);
+    Task<IEnumerable<TrackingSession>> GetSessionsAsync(Guid entityId, int limit, CancellationToken cancellationToken);
+    Task InsertSessionAsync(TrackingSession session, CancellationToken cancellationToken);
+    Task<IEnumerable<TrackingEvent>> GetEventsAsync(Guid entityId, int limit, CancellationToken cancellationToken);
+    Task InsertEventAsync(TrackingEvent trackingEvent, CancellationToken cancellationToken);
+    Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken);
+}
+
+public sealed class ClickHouseTrackingRepository : ITrackingRepository
+{
+    private readonly ClickHouseConnectionFactory _connectionFactory;
+
+    public ClickHouseTrackingRepository(ClickHouseConnectionFactory connectionFactory)
+    {
+        _connectionFactory = connectionFactory;
+    }
+
+    public async Task<IEnumerable<MainEntity>> GetMainEntitiesAsync(int limit, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT entity_id,
+                   creator_id,
+                   creator_email,
+                   title,
+                   panels,
+                   collaborators,
+                   visibility,
+                   is_shared,
+                   shared_token,
+                   created_at,
+                   updated_at
+            FROM main_entities
+            ORDER BY created_at DESC
+            LIMIT @limit;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "limit", DbType.Int32, limit);
+
+        var entities = new List<MainEntity>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            entities.Add(new MainEntity
+            {
+                EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
+                CreatorId = reader.GetInt64(reader.GetOrdinal("creator_id")),
+                CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
+                Title = reader.GetString(reader.GetOrdinal("title")),
+                Panels = reader.GetString(reader.GetOrdinal("panels")),
+                Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
+                Visibility = reader.GetString(reader.GetOrdinal("visibility")),
+                IsShared = reader.GetByte(reader.GetOrdinal("is_shared")) == 1,
+                SharedToken = reader.GetFieldValue<Guid>(reader.GetOrdinal("shared_token")),
+                CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
+                UpdatedAt = reader.GetDateTime(reader.GetOrdinal("updated_at"))
+            });
+        }
+
+        return entities;
+    }
+
+    public async Task InsertMainEntityAsync(MainEntity entity, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            INSERT INTO main_entities
+            (
+                entity_id,
+                creator_id,
+                creator_email,
+                title,
+                panels,
+                collaborators,
+                visibility,
+                is_shared,
+                shared_token,
+                created_at,
+                updated_at
+            )
+            VALUES
+            (
+                @entity_id,
+                @creator_id,
+                @creator_email,
+                @title,
+                @panels,
+                @collaborators,
+                @visibility,
+                @is_shared,
+                @shared_token,
+                @created_at,
+                @updated_at
+            );
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddCommonParametersForEntity(command, entity);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<TrackingSession>> GetSessionsAsync(Guid entityId, int limit, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT id,
+                   entity_id,
+                   user_id,
+                   company_id,
+                   started_at,
+                   last_activity_at,
+                   ended_at,
+                   total_events,
+                   total_views,
+                   total_clicks,
+                   total_exposes,
+                   total_disappears,
+                   device_type,
+                   device_model,
+                   entry_page,
+                   exit_page,
+                   created_at
+            FROM tracking_sessions
+            WHERE entity_id = @entity_id
+            ORDER BY started_at DESC
+            LIMIT @limit;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "entity_id", DbType.Guid, entityId);
+        AddParameter(command, "limit", DbType.Int32, limit);
+
+        var sessions = new List<TrackingSession>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            sessions.Add(new TrackingSession
+            {
+                Id = reader.GetFieldValue<Guid>(reader.GetOrdinal("id")),
+                EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
+                UserId = reader.GetInt64(reader.GetOrdinal("user_id")),
+                CompanyId = reader.GetInt64(reader.GetOrdinal("company_id")),
+                StartedAt = reader.GetDateTime(reader.GetOrdinal("started_at")),
+                LastActivityAt = reader.GetDateTime(reader.GetOrdinal("last_activity_at")),
+                EndedAt = reader.GetDateTime(reader.GetOrdinal("ended_at")),
+                TotalEvents = reader.GetInt32(reader.GetOrdinal("total_events")),
+                TotalViews = reader.GetInt32(reader.GetOrdinal("total_views")),
+                TotalClicks = reader.GetInt32(reader.GetOrdinal("total_clicks")),
+                TotalExposes = reader.GetInt32(reader.GetOrdinal("total_exposes")),
+                TotalDisappears = reader.GetInt32(reader.GetOrdinal("total_disappears")),
+                DeviceType = reader.GetString(reader.GetOrdinal("device_type")),
+                DeviceModel = reader.GetString(reader.GetOrdinal("device_model")),
+                EntryPage = reader.GetString(reader.GetOrdinal("entry_page")),
+                ExitPage = reader.GetString(reader.GetOrdinal("exit_page")),
+                CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"))
+            });
+        }
+
+        return sessions;
+    }
+
+    public async Task InsertSessionAsync(TrackingSession session, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            INSERT INTO tracking_sessions
+            (
+                id,
+                entity_id,
+                user_id,
+                company_id,
+                started_at,
+                last_activity_at,
+                ended_at,
+                total_events,
+                total_views,
+                total_clicks,
+                total_exposes,
+                total_disappears,
+                device_type,
+                device_model,
+                entry_page,
+                exit_page,
+                created_at
+            )
+            VALUES
+            (
+                @id,
+                @entity_id,
+                @user_id,
+                @company_id,
+                @started_at,
+                @last_activity_at,
+                @ended_at,
+                @total_events,
+                @total_views,
+                @total_clicks,
+                @total_exposes,
+                @total_disappears,
+                @device_type,
+                @device_model,
+                @entry_page,
+                @exit_page,
+                @created_at
+            );
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "id", DbType.Guid, session.Id);
+        AddParameter(command, "entity_id", DbType.Guid, session.EntityId);
+        AddParameter(command, "user_id", DbType.Int64, session.UserId);
+        AddParameter(command, "company_id", DbType.Int64, session.CompanyId);
+        AddParameter(command, "started_at", DbType.DateTime2, session.StartedAt);
+        AddParameter(command, "last_activity_at", DbType.DateTime2, session.LastActivityAt);
+        AddParameter(command, "ended_at", DbType.DateTime2, session.EndedAt);
+        AddParameter(command, "total_events", DbType.Int32, session.TotalEvents);
+        AddParameter(command, "total_views", DbType.Int32, session.TotalViews);
+        AddParameter(command, "total_clicks", DbType.Int32, session.TotalClicks);
+        AddParameter(command, "total_exposes", DbType.Int32, session.TotalExposes);
+        AddParameter(command, "total_disappears", DbType.Int32, session.TotalDisappears);
+        AddParameter(command, "device_type", DbType.String, session.DeviceType);
+        AddParameter(command, "device_model", DbType.String, session.DeviceModel);
+        AddParameter(command, "entry_page", DbType.String, session.EntryPage);
+        AddParameter(command, "exit_page", DbType.String, session.ExitPage);
+        AddParameter(command, "created_at", DbType.DateTime2, session.CreatedAt);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<TrackingEvent>> GetEventsAsync(Guid entityId, int limit, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT id,
+                   entity_id,
+                   session_id,
+                   event_type,
+                   event_name,
+                   page_name,
+                   component_name,
+                   timestamp,
+                   refer,
+                   expose_time,
+                   user_id,
+                   company_id,
+                   device_type,
+                   os_version,
+                   browser_version,
+                   network_type,
+                   network_effective_type,
+                   page_url,
+                   page_title,
+                   viewport_height,
+                   properties
+            FROM tracking_events
+            WHERE entity_id = @entity_id
+            ORDER BY timestamp DESC
+            LIMIT @limit;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "entity_id", DbType.Guid, entityId);
+        AddParameter(command, "limit", DbType.Int32, limit);
+
+        var events = new List<TrackingEvent>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            events.Add(new TrackingEvent
+            {
+                Id = reader.GetFieldValue<Guid>(reader.GetOrdinal("id")),
+                EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
+                SessionId = reader.GetFieldValue<Guid>(reader.GetOrdinal("session_id")),
+                EventType = reader.GetString(reader.GetOrdinal("event_type")),
+                EventName = reader.GetString(reader.GetOrdinal("event_name")),
+                PageName = reader.GetString(reader.GetOrdinal("page_name")),
+                ComponentName = reader.GetString(reader.GetOrdinal("component_name")),
+                Timestamp = reader.GetDateTime(reader.GetOrdinal("timestamp")),
+                Refer = reader.GetString(reader.GetOrdinal("refer")),
+                ExposeTime = reader.GetInt32(reader.GetOrdinal("expose_time")),
+                UserId = reader.GetInt64(reader.GetOrdinal("user_id")),
+                CompanyId = reader.GetInt64(reader.GetOrdinal("company_id")),
+                DeviceType = reader.GetString(reader.GetOrdinal("device_type")),
+                OsVersion = reader.GetString(reader.GetOrdinal("os_version")),
+                BrowserVersion = reader.GetString(reader.GetOrdinal("browser_version")),
+                NetworkType = reader.GetString(reader.GetOrdinal("network_type")),
+                NetworkEffectiveType = reader.GetString(reader.GetOrdinal("network_effective_type")),
+                PageUrl = reader.GetString(reader.GetOrdinal("page_url")),
+                PageTitle = reader.GetString(reader.GetOrdinal("page_title")),
+                ViewportHeight = reader.GetInt32(reader.GetOrdinal("viewport_height")),
+                Properties = reader.GetString(reader.GetOrdinal("properties"))
+            });
+        }
+
+        return events;
+    }
+
+    public async Task InsertEventAsync(TrackingEvent trackingEvent, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            INSERT INTO tracking_events
+            (
+                id,
+                entity_id,
+                session_id,
+                event_type,
+                event_name,
+                page_name,
+                component_name,
+                timestamp,
+                refer,
+                expose_time,
+                user_id,
+                company_id,
+                device_type,
+                os_version,
+                browser_version,
+                network_type,
+                network_effective_type,
+                page_url,
+                page_title,
+                viewport_height,
+                properties
+            )
+            VALUES
+            (
+                @id,
+                @entity_id,
+                @session_id,
+                @event_type,
+                @event_name,
+                @page_name,
+                @component_name,
+                @timestamp,
+                @refer,
+                @expose_time,
+                @user_id,
+                @company_id,
+                @device_type,
+                @os_version,
+                @browser_version,
+                @network_type,
+                @network_effective_type,
+                @page_url,
+                @page_title,
+                @viewport_height,
+                @properties
+            );
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "id", DbType.Guid, trackingEvent.Id);
+        AddParameter(command, "entity_id", DbType.Guid, trackingEvent.EntityId);
+        AddParameter(command, "session_id", DbType.Guid, trackingEvent.SessionId);
+        AddParameter(command, "event_type", DbType.String, trackingEvent.EventType);
+        AddParameter(command, "event_name", DbType.String, trackingEvent.EventName);
+        AddParameter(command, "page_name", DbType.String, trackingEvent.PageName);
+        AddParameter(command, "component_name", DbType.String, trackingEvent.ComponentName);
+        AddParameter(command, "timestamp", DbType.DateTime2, trackingEvent.Timestamp);
+        AddParameter(command, "refer", DbType.String, trackingEvent.Refer);
+        AddParameter(command, "expose_time", DbType.Int32, trackingEvent.ExposeTime);
+        AddParameter(command, "user_id", DbType.Int64, trackingEvent.UserId);
+        AddParameter(command, "company_id", DbType.Int64, trackingEvent.CompanyId);
+        AddParameter(command, "device_type", DbType.String, trackingEvent.DeviceType);
+        AddParameter(command, "os_version", DbType.String, trackingEvent.OsVersion);
+        AddParameter(command, "browser_version", DbType.String, trackingEvent.BrowserVersion);
+        AddParameter(command, "network_type", DbType.String, trackingEvent.NetworkType);
+        AddParameter(command, "network_effective_type", DbType.String, trackingEvent.NetworkEffectiveType);
+        AddParameter(command, "page_url", DbType.String, trackingEvent.PageUrl);
+        AddParameter(command, "page_title", DbType.String, trackingEvent.PageTitle);
+        AddParameter(command, "viewport_height", DbType.Int32, trackingEvent.ViewportHeight);
+        AddParameter(command, "properties", DbType.String, trackingEvent.Properties);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken)
+    {
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        var deleteStatements = new[]
+        {
+            "ALTER TABLE tracking_events DELETE WHERE entity_id = @entity_id;",
+            "ALTER TABLE tracking_sessions DELETE WHERE entity_id = @entity_id;",
+            "ALTER TABLE dashboard_editors DELETE WHERE entity_id = @entity_id;",
+            "ALTER TABLE dashboard_favorites DELETE WHERE entity_id = @entity_id;",
+            "ALTER TABLE main_entities DELETE WHERE entity_id = @entity_id;"
+        };
+
+        foreach (var statement in deleteStatements)
+        {
+            await using var command = CreateCommand(connection, statement);
+            AddParameter(command, "entity_id", DbType.Guid, entityId);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+
+    private static void AddCommonParametersForEntity(DbCommand command, MainEntity entity)
+    {
+        AddParameter(command, "entity_id", DbType.Guid, entity.EntityId);
+        AddParameter(command, "creator_id", DbType.Int64, entity.CreatorId);
+        AddParameter(command, "creator_email", DbType.String, entity.CreatorEmail);
+        AddParameter(command, "title", DbType.String, entity.Title);
+        AddParameter(command, "panels", DbType.String, entity.Panels);
+        AddParameter(command, "collaborators", DbType.String, entity.Collaborators);
+        AddParameter(command, "visibility", DbType.String, entity.Visibility);
+        AddParameter(command, "is_shared", DbType.Byte, entity.IsShared ? 1 : 0);
+        AddParameter(command, "shared_token", DbType.Guid, entity.SharedToken);
+        AddParameter(command, "created_at", DbType.DateTime2, entity.CreatedAt);
+        AddParameter(command, "updated_at", DbType.DateTime2, entity.UpdatedAt);
+    }
+
+    private static ClickHouseCommand CreateCommand(ClickHouseConnection connection, string sql)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = sql;
+        return command;
+    }
+
+    private static void AddParameter(DbCommand command, string name, DbType dbType, object value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.DbType = dbType;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
+    }
+}

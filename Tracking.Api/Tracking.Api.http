@@ -1,0 +1,24 @@
+@Tracking.Api_HostAddress = http://localhost:8080
+
+GET {{Tracking.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{Tracking.Api_HostAddress}}/entities?limit=10
+Accept: application/json
+
+###
+
+POST {{Tracking.Api_HostAddress}}/entities
+Content-Type: application/json
+
+{
+  "creatorId": 1001,
+  "creatorEmail": "owner@example.com",
+  "title": "Demo dashboard",
+  "panels": "{}",
+  "collaborators": "[]",
+  "visibility": "private",
+  "isShared": false
+}
