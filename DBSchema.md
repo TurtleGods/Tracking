@@ -47,16 +47,23 @@ I need 3 tables:
 - total_views
 - total_clicks
 - total_exposes
-- 
+- total_disapears
+- device_type
+- device_model
+- entry_page
+- exit_page
+- created_at
 
 
 ### dashboard_editors
-- One user has many orders
-- One order has many order_items
-- Delete user should NOT cascade delete orders
-- Delete order SHOULD cascade delete order_items
+- id
+- dashboard_id
+- user_email
+- added_at
+- added_by
 
-### Idashboard_favorites
-- users.email unique
-- orders.created_at index
-- order_items(order_id, product_name) unique
+### dashboard_favorites
+- id
+- dashboard_id
+- user_id
+- created_at
