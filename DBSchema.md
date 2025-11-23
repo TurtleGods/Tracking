@@ -1,180 +1,117 @@
-# You are Codex — Generate Production-Ready ClickHouse Schema
+# ClickHouse Schema (Production Ready)
 
-You are Codex.  
-Please generate a production-ready **ClickHouse database schema** based on the full specification below.
+Source of truth for the ClickHouse tables used by the API. Schema is applied
+from `db/001_clickhouse_init.sql`.
 
----
+## Tables
 
-# 🎯 Goal
+```sql
+CREATE TABLE IF NOT EXISTS tracking.main_entities
+(
+    entity_id UUID,
+    creator_id UInt64,
+    creator_email String,
+    title String,
+    panels String,
+    collaborators String,
+    visibility LowCardinality(String),
+    is_shared UInt8,
+    shared_token UUID,
+    created_at DateTime64(3) DEFAULT now64(),
+    updated_at DateTime64(3) DEFAULT now64(),
+    deleted_at Nullable(DateTime64(3))
+) ENGINE = ReplacingMergeTree
+PARTITION BY toYYYYMM(created_at)
+ORDER BY (entity_id, created_at)
+TTL toDateTime(created_at) + INTERVAL 365 DAY DELETE;
+```
 
-✔ A **main table** exists  
-✔ When deleting a record in the **main table**,  
-✔ All corresponding dependent records in **child tables** must ALSO be deleted  
-✔ Implement cascade delete in ClickHouse using best practices  
-   - (Because ClickHouse does not support real foreign keys)
+```sql
+CREATE TABLE IF NOT EXISTS tracking.tracking_sessions
+(
+    id UUID,
+    entity_id UUID,
+    user_id UInt64,
+    company_id UInt64,
+    started_at DateTime64(3),
+    last_activity_at DateTime64(3),
+    ended_at DateTime64(3),
+    total_events UInt32,
+    total_views UInt32,
+    total_clicks UInt32,
+    total_exposes UInt32,
+    total_disappears UInt32,
+    device_type String,
+    device_model String,
+    entry_page String,
+    exit_page String,
+    created_at DateTime64(3) DEFAULT now64()
+) ENGINE = MergeTree
+PARTITION BY toYYYYMM(started_at)
+ORDER BY (entity_id, started_at, id)
+TTL toDateTime(started_at) + INTERVAL 180 DAY DELETE;
+```
 
-**Use:**
+```sql
+CREATE TABLE IF NOT EXISTS tracking.tracking_events
+(
+    id UUID,
+    entity_id UUID,
+    session_id UUID,
+    event_type String,
+    event_name String,
+    page_name String,
+    component_name String,
+    timestamp DateTime64(3),
+    refer String,
+    expose_time Int32,
+    user_id UInt64,
+    company_id UInt64,
+    device_type String,
+    os_version String,
+    browser_version String,
+    network_type String,
+    network_effective_type String,
+    page_url String,
+    page_title String,
+    viewport_height Int32,
+    properties String
+) ENGINE = MergeTree
+PARTITION BY toYYYYMM(timestamp)
+ORDER BY (entity_id, session_id, timestamp, id)
+TTL toDateTime(timestamp) + INTERVAL 180 DAY DELETE;
+```
 
-- `MergeTree` or `ReplacingMergeTree`
-- `UUID` for ids
-- `Nullable` where needed
-- `JSON` stored as `String`
-- Use `TTL`, partitions, materialized views, or mutation cascades to simulate cascade deletes
-- Output should be valid SQL using fenced code blocks:  
-  \`\`\`sql  
-  ...  
-  \`\`\`
+```sql
+CREATE TABLE IF NOT EXISTS tracking.dashboard_editors
+(
+    id UUID,
+    entity_id UUID,
+    user_email String,
+    added_at DateTime64(3),
+    added_by String
+) ENGINE = ReplacingMergeTree
+ORDER BY (entity_id, id);
+```
 
----
+```sql
+CREATE TABLE IF NOT EXISTS tracking.dashboard_favorites
+(
+    id UUID,
+    entity_id UUID,
+    user_id UInt64,
+    created_at DateTime64(3)
+) ENGINE = ReplacingMergeTree
+ORDER BY (entity_id, id);
+```
 
-# 📌 MAIN TABLE — Root Entity: `main_entities`
+## Cascade strategy
+- ClickHouse has no FK cascades; the API issues ordered `ALTER ... DELETE`
+  mutations for children then parent (`tracking_events`, `tracking_sessions`,
+  `dashboard_editors`, `dashboard_favorites`, `main_entities`).
+- Order keys include `entity_id` to keep related rows co-located for deletes.
 
-This table serves as the *aggregate root*.  
-All child tables reference its `entity_id`.
-
-### Columns
-
-- `entity_id` (UUID, PK)  
-- `creator_id` (UInt64)  
-- `creator_email` (String)  
-- `title` (String)  
-- `panels` (String) — JSON string  
-- `collaborators` (String) — JSON string  
-- `visibility` (String)  
-- `is_shared` (UInt8)  
-- `shared_token` (UUID)  
-- `created_at` (DateTime64)  
-- `updated_at` (DateTime64)  
-
-### Cascade requirement
-When deleting a row from `main_entities`,  
-**all corresponding rows** from:  
-- `tracking_sessions`  
-- `tracking_events`  
-- `dashboard_editors`  
-- `dashboard_favorites`  
-
-must also be removed.
-
-Implement cascade delete using ClickHouse best practices.
-
----
-
-# 📌 CHILD TABLE 1 — `tracking_sessions`
-
-System-level session tracking.
-
-### Columns
-
-- `id` (UUID)  
-- `entity_id` (UUID)  
-- `user_id` (UInt64)  
-- `company_id` (UInt64)  
-- `started_at` (DateTime64)  
-- `last_activity_at` (DateTime64)  
-- `ended_at` (DateTime64)  
-- `total_events` (UInt32)  
-- `total_views` (UInt32)  
-- `total_clicks` (UInt32)  
-- `total_exposes` (UInt32)  
-- `total_disappears` (UInt32)  
-- `device_type` (String)  
-- `device_model` (String)  
-- `entry_page` (String)  
-- `exit_page` (String)  
-- `created_at` (DateTime64)
-
-### Cascade
-When the related `entity_id` is deleted in `main_entities`,  
-rows in this table with the same `entity_id` must also be deleted.
-
----
-
-# 📌 CHILD TABLE 2 — `tracking_events`
-
-System-level front-end / app event tracking.
-
-### Columns
-- `id` (UUID)  
-- `entity_id` (UUID)  
-- `session_id` (UUID)  
-- `event_type` (String)  
-- `event_name` (String)  
-- `page_name` (String)  
-- `component_name` (String)  
-- `timestamp` (DateTime64)  
-- `refer` (String)  
-- `expose_time` (Int32)  
-- `user_id` (UInt64)  
-- `company_id` (UInt64)  
-- `device_type` (String)  
-- `os_version` (String)  
-- `browser_version` (String)  
-- `network_type` (String)  
-- `network_effective_type` (String)  
-- `page_url` (String)  
-- `page_title` (String)  
-- `viewport_height` (Int32)  
-- `properties` (String) — JSON string  
-
-### Cascade requirement
-Deleting `entity_id` from `main_entities` must also delete related event rows.
-
----
-
-# 📌 CHILD TABLE 3 — `dashboard_editors`
-
-### Columns
-- `id` (UUID)  
-- `entity_id` (UUID)  
-- `user_email` (String)  
-- `added_at` (DateTime64)  
-- `added_by` (String)
-
-### Cascade
-Deleting `entity_id` must remove corresponding editor records.
-
----
-
-# 📌 CHILD TABLE 4 — `dashboard_favorites`
-
-### Columns
-- `id` (UUID)  
-- `entity_id` (UUID)  
-- `user_id` (UInt64)  
-- `created_at` (DateTime64)
-
-### Cascade
-Deleting `entity_id` must remove corresponding favorite records.
-
----
-
-# 🎯 Notes for Codex
-
-Please generate:
-
-### ✔ `CREATE TABLE` statements  
-### ✔ Using correct ClickHouse engines (`MergeTree`, `ReplacingMergeTree`, etc.)  
-### ✔ With recommended partition keys and ordering keys  
-### ✔ Implement cascade delete behavior using ClickHouse best practices:
-
-Choose the best, modern, maintainable approach:
-
-- Materialized View + DELETE
-- TTL DELETE with partitioning by `entity_id`
-- Cascading mutations
-- Dictionary-based dependency removal
-- Or any other recommended ClickHouse method
-
-### Output must be valid SQL
-
-Format:
-
-\`\`\`sql
-CREATE TABLE ...
-\`\`\`
-
----
-
-# END OF FILE —  
-**Please generate the ClickHouse schema now.**
+## Retention
+- `main_entities` TTL: 365 days from `created_at`.
+- `tracking_sessions` TTL: 180 days from `started_at`.
+- `tracking_events` TTL: 180 days from `timestamp`.
