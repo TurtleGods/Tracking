@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS tracking.main_entities
     created_at DateTime64(3) DEFAULT now64(),
     updated_at DateTime64(3) DEFAULT now64(),
     deleted_at Nullable(DateTime64(3))
-) ENGINE = ReplacingMergeTree(deleted_at)
+) ENGINE = ReplacingMergeTree
 PARTITION BY toYYYYMM(created_at)
 ORDER BY (entity_id, created_at)
-TTL created_at + INTERVAL 365 DAY DELETE;
+TTL toDateTime(created_at) + INTERVAL 365 DAY DELETE;
 
 CREATE TABLE IF NOT EXISTS tracking.tracking_sessions
 (
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS tracking.tracking_sessions
 ) ENGINE = MergeTree
 PARTITION BY toYYYYMM(started_at)
 ORDER BY (entity_id, started_at, id)
-TTL started_at + INTERVAL 180 DAY DELETE;
+TTL toDateTime(started_at) + INTERVAL 180 DAY DELETE;
 
 CREATE TABLE IF NOT EXISTS tracking.tracking_events
 (
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS tracking.tracking_events
 ) ENGINE = MergeTree
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (entity_id, session_id, timestamp, id)
-TTL timestamp + INTERVAL 180 DAY DELETE;
+TTL toDateTime(timestamp) + INTERVAL 180 DAY DELETE;
 
 CREATE TABLE IF NOT EXISTS tracking.dashboard_editors
 (
