@@ -1,18 +1,12 @@
 <clickhouse>
   <!-- Docs: <https://clickhouse.com/docs/en/operations/settings/settings_users/> -->
   <users>
-    <!-- Remove default user -->
-    <default remove="remove">
-    </default>
-
-    <clickhouse>
-      <profile>default</profile>
+    <default>
+      <!-- User default is available only locally -->
       <networks>
-        <ip>::/0</ip>
+        <ip>::1</ip>
+        <ip>127.0.0.1</ip>
       </networks>
-      <password><![CDATA[password]]></password>
-      <quota>default</quota>
-      <access_management>0</access_management>
-    </clickhouse>
+    </default>
   </users>
 </clickhouse>
