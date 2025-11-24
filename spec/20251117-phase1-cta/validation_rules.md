@@ -58,8 +58,8 @@
 ### 第三層：格式與列舉值驗證（標記但接受）
 5. **列舉值驗證**（標記為 unknown_*）
    - `INVALID_EVENT_TYPE`: "Invalid eventType: {eventType}. Valid values are enter_screen, click, leave_screen"
-   - `INVALID_DEVICE_TYPE`: "Invalid deviceType: {deviceType}. Valid values are Android, IOS, Browser"
-   - `INVALID_OS`: "Invalid os: {os}. Valid values are Android, IOS, Browser"
+      - `INVALID_DEVICE_TYPE`: "Invalid deviceType: {deviceType}. Valid values are Android, IOS, Browser"
+   
 
 6. **格式驗證**
    - `INVALID_TIMESTAMP_FORMAT`: "Invalid timestamp format. Must be epoch milliseconds"

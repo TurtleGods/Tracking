@@ -93,8 +93,9 @@ Validation / Rules 實作：
    → 接受並儲存。
 3. **metadata 缺少必要欄位**
    → 依 eventType 動態檢查
-4. **未知 eventType / deviceType / os**
+4. **未知 eventType / deviceType**
    → 設 flags，例如：`unknown_eventType=true`
+   **os** 欄位接受任意字串，前端無法解析時可填入 "unknown"。
 5. **多餘欄位**
    → 比對 schema，出現未定義欄位 → `extra_fields=true`
 6. **事件需依前端送入順序紀錄。**

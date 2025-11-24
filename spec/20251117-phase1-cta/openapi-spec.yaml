@@ -136,7 +136,7 @@ components:
           description: 裝置唯一標識符
         eventId:
           type: string
-          description: 事件唯一標識符（timestamp-CompanyId-EmployeeId-DeviceId 格式）
+          description: 事件唯一標識符（timestamp-CompanyId-EmployeeId-DeviceType-DeviceId 格式）
         metadata:
           $ref: '#/components/schemas/EventMetadata'
         deviceInfo:
@@ -174,7 +174,6 @@ components:
         os:
           type: string
           description: 作業系統
-          enum: [Android, IOS, Browser]
 
     EventFlags:
       type: object

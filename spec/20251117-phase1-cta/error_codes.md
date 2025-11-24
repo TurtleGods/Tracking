@@ -67,9 +67,7 @@
 - **訊息**: "Invalid deviceType: {deviceType}. Valid values are Android, IOS, Browser"
 - **說明**: deviceType 不是有效值時觸發
 
-- **錯誤代碼**: `INVALID_OS`
-- **訊息**: "Invalid os: {os}. Valid values are Android, IOS, Browser"
-- **說明**: os 不是有效值時觸發
+
 
 ### 欄位格式錯誤
 - **錯誤代碼**: `INVALID_TIMESTAMP_FORMAT`

@@ -21,7 +21,7 @@ The data structure for storing user behavior events in the system.
   },
   "deviceInfo": {
     "deviceType": "string (Android | IOS | Browser)",
-    "os": "string (Android | IOS | Browser)"
+    "os": "string"
   },
   "flags": {
     "unknown_eventType": "boolean",

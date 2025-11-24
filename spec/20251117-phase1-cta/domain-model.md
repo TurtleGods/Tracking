@@ -30,7 +30,7 @@ Information about the device where the event occurred.
 
 ### Properties
 - `deviceType`: Type of device (`Android` | `IOS` | `Browser`)
-- `os`: Operating system (`Android` | `IOS` | `Browser`)
+- `os`: Operating system (string)
 
 ## EventResponseModels
 Models for the API response containing accepted and rejected events.

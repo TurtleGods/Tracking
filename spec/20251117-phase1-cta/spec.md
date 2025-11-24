@@ -65,7 +65,7 @@
 ### ✔ Key-based Cursor 規格
 
 - 格式強制為：`{timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}`
-- 查詢邏輯：伺服器將查詢 (timestamp, companyId, employeeId, deviceType, deviceId) 字典序大於 cursor 的指定客戶的所有裝置資訊 by 分頁大小
+- 查詢邏輯：伺服器將查詢 (timestamp, companyId, employeeId, deviceType, deviceId) 元組 (Tuple) 字典序大於 cursor 的指定客戶的所有裝置資訊 by 分頁大小，確保排序準確性。
 - 若 cursor 無效 / 不存在：
     - **自動 fallback 從頭開始**（不回 400）。
 
