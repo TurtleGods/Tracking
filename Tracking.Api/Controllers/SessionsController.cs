@@ -32,6 +32,13 @@ public sealed class SessionsController : ControllerBase
         return CreatedAtAction(nameof(Get), new { entityId, id = session.Id }, session);
     }
 
+    [HttpDelete("{sessionId:guid}")]
+    public async Task<IActionResult> Delete(Guid entityId, Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        await _repository.DeleteSessionCascadeAsync(entityId, sessionId, cancellationToken);
+        return NoContent();
+    }
+
     private static int NormalizeLimit(int limit) => limit switch
     {
         < 1 => 50,
