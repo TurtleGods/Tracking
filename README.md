@@ -58,6 +58,19 @@ docker-compose exec clickhouse clickhouse-client \
   --query "SELECT count() FROM tracking.tracking_events"
 ```
 
+## Load Testing
+Use the console load tester in `Tracking.LoadTester` to generate entities, sessions, and a firehose of events.
+```bash
+dotnet run --project Tracking.LoadTester/Tracking.LoadTester.csproj
+# optional env vars:
+# TARGET_BASE=http://localhost:8080
+# TOTAL_EVENTS=100000
+# CONCURRENCY=64
+# PROGRESS_STEP=1000
+# ENTITY_ID=<guid> SESSION_ID=<guid>  # reuse existing
+```
+It creates a PT entity + session (unless you provide IDs) and sends `TOTAL_EVENTS` POSTs to `/entities/{entityId}/events`, printing in-place progress and RPS on completion.
+
 ## Notes
 - Cascades are handled in the API via ordered `ALTER ... DELETE` mutations on child tables before deleting `main_entities`.
 - Override connection strings with env var `ClickHouse__ConnectionString`. Keep secrets out of git.***

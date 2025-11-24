@@ -7,8 +7,10 @@ using System.Threading.Channels;
 var baseUrl     = Environment.GetEnvironmentVariable("TARGET_BASE") ?? "http://localhost:8080";                                                                                      
 var total       = int.TryParse(Environment.GetEnvironmentVariable("TOTAL_EVENTS") ?? "100000", out var t) ? t : 100000;                                                              
 var concurrency = int.TryParse(Environment.GetEnvironmentVariable("CONCURRENCY") ?? "64", out var c) ? c : 64;                                                                       
+var progress    = int.TryParse(Environment.GetEnvironmentVariable("PROGRESS_STEP") ?? "1000", out var p) && p > 0 ? p : 1000;                                                        
 var entityIdEnv = Environment.GetEnvironmentVariable("ENTITY_ID");                                                                                                                   
 var sessionIdEnv = Environment.GetEnvironmentVariable("SESSION_ID");                                                                                                                 
+var progressLock = new object();                                                                                                                                                     
                                                                                                                                                                                     
 var jsonOpts = new JsonSerializerOptions(JsonSerializerDefaults.Web); // camelCase for requests                                                                                      
 using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };                                                                                                                
@@ -27,12 +29,12 @@ Console.WriteLine($"Using entity={entityId} session={sessionId}");
 var channel = Channel.CreateBounded<int>(concurrency * 4);                                                                                                                           
 var sw = Stopwatch.StartNew();                                                                                                                                                       
 long failures = 0;                                                                                                                                                                   
+long sent = 0;                                                                                                                                                                       
                                                                                                                                                                                     
 var workers = Enumerable.Range(0, concurrency).Select(async _ =>                                                                                                                     
 {                                                                                                                                                                                    
     await foreach (var i in channel.Reader.ReadAllAsync())                                                                                                                           
-    {                               
-        Console.WriteLine($"Sending event {i + 1} / {total}");                                                                                                                                                 
+    {                                                                                                                                                                       
         var payload = new TrackingEventRequest
         {                                                                                                                                                                            
             SessionId = sessionId,                                                                                                                                                   
@@ -57,8 +59,7 @@ var workers = Enumerable.Range(0, concurrency).Select(async _ =>
         };                                                                                                                                                                           
                                                                                                                                                                                     
         try                                                                                                                                                                          
-        {                            
-            Console.WriteLine($"Posting event {i + 1} / {total}");                                                                                                                                                
+        {                                                                                                                                                                     
             using var resp = await client.PostAsJsonAsync($"entities/{entityId}/events", payload, jsonOpts);                                                                         
             if (!resp.IsSuccessStatusCode) Interlocked.Increment(ref failures);                                                                                                      
         }                                                                                                                                                                            
@@ -66,6 +67,19 @@ var workers = Enumerable.Range(0, concurrency).Select(async _ =>
         {                                                                                                                                                                            
             Interlocked.Increment(ref failures);                                                                                                                                     
         }                                                                                                                                                                            
+
+        var count = Interlocked.Increment(ref sent);
+        if (count % progress == 0 || count == total)
+        {
+            lock (progressLock)
+            {
+                Console.Write($"\rProgress: {count}/{total}");
+                if (count == total)
+                {
+                    Console.WriteLine();
+                }
+            }
+        }
     }                                                                                                                                                                                
 });                                                                                                                                                                                  
                                                                                                                                                                                     
