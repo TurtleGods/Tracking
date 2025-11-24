@@ -32,15 +32,15 @@
    - [ ] 確保介面設計易於未來切換其他儲存方案
 
 5. **EventCursorHandler** - 建立游標處理服務
-   - [ ] 實作 cursor 格式 `{timestamp}|{companyId}|{employeeId}|{deviceId}`
+   - [ ] 實作 cursor 格式 `{timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}`
    - [ ] 實作 parse（無效則 fallback）
-   - [ ] 實作 next cursor（取最後事件 timestamp|companyId|employeeId|deviceId）
+   - [ ] 實作 next cursor（取最後事件 timestamp|companyId|employeeId|deviceType|deviceId）
 
 ### 第三階段：業務邏輯 (Phase 3)
 6. **Validation Service** - 建立驗證服務
    - [ ] 實作 ingestion rules：
-     - [ ] 批次內 `timestamp-CompanyId-EmployeeId-DeviceId` 重複 → 拒絕後者
-     - [ ] 跨批次 `timestamp-CompanyId-EmployeeId-DeviceId` 重複 → 直接忽略事件
+     - [ ] 批次內 `eventId` 重複 → 拒絕後者
+     - [ ] 跨批次 `eventId` 重複 → 接受並儲存
      - [ ] eventType 必填欄位檢查（enter_screen, click, leave_screen）
      - [ ] 未知 eventType / deviceType / os → flags.*
      - [ ] 多餘 metadata / deviceInfo 欄位 → flags.extra_fields=true
@@ -128,7 +128,7 @@ Phase 8 (Testing & Docker)
 
 - [ ] POST /events/batch 部分成功邏輯正確
 - [ ] 查詢 API 依 timestamp-CompanyId-EmployeeId-DeviceId 順序回傳
-- [ ] timestamp-CompanyId-EmployeeId-DeviceId 重複事件正確處理（批次內拒絕，跨批次忽略）
+- [ ] `eventId` 重複事件正確處理（批次內拒絕，跨批次接受並儲存）
 - [ ] cursor iteration 正確運作
 - [ ] restart 後記憶體資料清空
 

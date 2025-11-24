@@ -12,8 +12,8 @@ The data structure for storing user behavior events in the system.
   "screenId": "string",
   "eventType": "string",
   "timestamp": "number (epoch milliseconds)",
-  "deviceId": "string (Android | IOS | Browser)",
-  "eventId": "string (timestamp-CompanyId-EmployeeId-DeviceId format)",
+  "deviceId": "string (unique device ID rather than device type enum)",
+  "eventId": "string (timestamp-CompanyId-EmployeeId-DeviceType-DeviceId format)",
   "metadata": {
     "view": "string (required for enter_screen)",
     "componentId": "string (required for click)",
@@ -24,7 +24,6 @@ The data structure for storing user behavior events in the system.
     "os": "string (Android | IOS | Browser)"
   },
   "flags": {
-    "duplicate_eventId": "boolean",
     "unknown_eventType": "boolean",
     "extra_fields": "boolean"
   }
@@ -36,7 +35,7 @@ The internal representation of events stored in the system.
 
 ### In-Memory Storage
 - Append-only list of raw events
-- Ordered by `eventId` (timestamp-CompanyId-EmployeeId-DeviceId format)
+- Ordered by `eventId` (timestamp-CompanyId-EmployeeId-DeviceType-DeviceId format)
 - Preserves original structure including all flags
 - Cleared on system restart (POC requirement)
 
@@ -59,7 +58,7 @@ The structure for querying and retrieving events.
   "events": [
     // Array of raw Event objects as stored
   ],
-  "next_cursor": "string ({timestamp}|{companyId}|{employeeId}|{deviceId})",
+  "next_cursor": "string ({timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId})",
   "size": "number"
 }
 ```
@@ -85,9 +84,11 @@ The structure for responses to batch event submissions.
 ```
 
 ## Cursor Format
-- Format: `{timestamp}|{companyId}|{employeeId}|{deviceId}`
+- Format: `{timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}`
+- Query Logic: Retrieve events where (timestamp, companyId, employeeId, deviceType, deviceId) in lexicographical order is greater than the cursor value
 - Timestamp: Epoch milliseconds from the last event in the current page
 - CompanyId: The company identifier from the last event
 - EmployeeId: The employee identifier from the last event
+- DeviceType: The device type from the last event
 - DeviceId: The device identifier from the last event
 - Invalid cursors automatically fallback to the beginning

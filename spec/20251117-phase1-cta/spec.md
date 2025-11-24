@@ -26,8 +26,10 @@
 
 ### ✔ Ingestion Rules
 
-1. **批次內 timestamp-CompanyId-EmployeeId-DeviceId 重複 → 拒絕後者，接受第一筆。**
-2. **跨批次 timestamp-CompanyId-EmployeeId-DeviceId 重複 → 接受，最後不會被記錄**
+1. **批次內重複 → 拒絕後者，接受第一筆。**
+    - 基於 `eventId` 判斷重複
+2. **跨批次重複 → 接受並儲存。**
+    - 基於 `eventId` 判斷重複
 3. **metadata 缺少 eventType 必填欄位 → 拒絕。**
 4. **未知的 eventType / deviceType / os → 接受，並於 flags 標示，如 `flags.unknown_eventType=true`。**
 5. **未知欄位（多餘 metadata 或 deviceInfo 欄位） → 接受，但標記 `flags.extra_fields=true`。**
@@ -62,8 +64,8 @@
 
 ### ✔ Key-based Cursor 規格
 
-- 格式強制為：`{timestamp}|{companyId}|{employeeId}|{deviceId}`
-- 伺服器將查詢 <= timestamp 的指定客戶的所有裝置資訊 by 分頁大小
+- 格式強制為：`{timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}`
+- 查詢邏輯：伺服器將查詢 (timestamp, companyId, employeeId, deviceType, deviceId) 字典序大於 cursor 的指定客戶的所有裝置資訊 by 分頁大小
 - 若 cursor 無效 / 不存在：
     - **自動 fallback 從頭開始**（不回 400）。
 
@@ -73,7 +75,7 @@
 
 {
   "events": [/* raw events as stored */],
-  "next_cursor": "1768888894123|company123|employee456|device789",
+  "next_cursor": "1768888894123|company123|employee456|Android|device789uuid",
   "size": 100
 }
 

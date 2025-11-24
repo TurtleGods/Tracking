@@ -87,11 +87,10 @@ Produce { accepted[], rejected[] }
 
 Validation / Rules 實作：
 
-1. **批次內 timestamp-CompanyId-EmployeeId-DeviceId 重複**
-   → 使用 HashSet 檢查 batch-level duplicates with format "{timestamp}-{companyId}-{employeeId}-{deviceId}"
-2. **跨批次 timestamp-CompanyId-EmployeeId-DeviceId 重複**
-   → 查 in-memory store index
-   → 若撞到，直接忽略事件
+1. **批次內 eventId 重複**
+   → 使用 HashSet 檢查 batch-level duplicates with format `eventId`
+2. **跨批次 eventId 重複**
+   → 接受並儲存。
 3. **metadata 缺少必要欄位**
    → 依 eventType 動態檢查
 4. **未知 eventType / deviceType / os**
@@ -114,12 +113,12 @@ rejected: [{ eventId, error_code, message }]
 
 Key-based Query：
 
-- Query 條件格式：`{timestamp}|{companyId}|{employeeId}|{deviceId}`
+- Query 條件格式：`{timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}`
 - 系統將查詢 <= timestamp 的指定客戶的所有裝置資訊 by 分頁大小
 - 若 cursor 無效 → 自動 fallback: 從最舊事件開始。
 - Query Service 實作：
-  - 依 eventId (timestamp-CompanyId-EmployeeId-DeviceId) 排序
-  - 推算下一個 cursor：取**最後一筆事件的 timestamp|companyId|employeeId|deviceId**。
+  - 依 eventId (timestamp-CompanyId-EmployeeId-DeviceType-DeviceId) 排序
+  - 推算下一個 cursor：取**最後一筆事件的 timestamp|companyId|employeeId|deviceType|deviceId**。
 - 回傳事件需包含儲存時的 flags。
 
 ---

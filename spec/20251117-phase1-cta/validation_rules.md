@@ -18,23 +18,7 @@
 }
 ```
 
-**範例 2：同時觸發 unknown_eventType、extra_fields 和 duplicate_eventId**
-```json
-{
-  "eventType": "custom_event",           // 不在允許值內
-  "custom_field": "value",               // 多餘欄位
-  "timestamp": 1234567890000,
-  "companyId": "company123",
-  "employeeId": "employee456",
-  "deviceId": "Android",
-  // 這個 eventId 已存在於系統中
-  "flags": {
-    "unknown_eventType": true,
-    "extra_fields": true,
-    "duplicate_eventId": true
-  }
-}
-```
+
 
 ### Flag 處理策略
 
@@ -103,8 +87,6 @@
     ↓
 多餘欄位檢查（標記 extra_fields flag）
     ↓
-是否跨批次重複？ → 是 → 標記 duplicate_eventId flag，接受但不儲存
-    ↓ 否
 加入 accepted[]，儲存事件
 ```
 
@@ -116,7 +98,6 @@
 | 必填欄位缺失 | 拒絕事件 | 拒絕 |
 | 未知 eventType | 標記 unknown_eventType flag | 接受 |
 | 多餘欄位 | 標記 extra_fields flag | 接受 |
-| 跨批次重複 | 標記 duplicate_eventId flag，但不儲存 | 接受但不儲存 |
 | 多種問題同時發生 | 標記所有對應 flags | 根據最優先規則處理 |
 
 ## 實作建議

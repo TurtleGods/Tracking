@@ -35,7 +35,7 @@ paths:
       parameters:
         - name: t
           in: query
-          description: Cursor 用於分頁，格式為 {timestamp}|{companyId}|{employeeId}|{deviceId}
+          description: Cursor 用於分頁，格式為 {timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}
           required: false
           schema:
             type: string
@@ -69,7 +69,7 @@ paths:
             type: string
         - name: t
           in: query
-          description: Cursor 用於分頁，格式為 {timestamp}|{companyId}|{employeeId}|{deviceId}
+          description: Cursor 用於分頁，格式為 {timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}
           required: false
           schema:
             type: string
@@ -133,8 +133,7 @@ components:
           description: 事件發生的時間戳（epoch 毫秒）
         deviceId:
           type: string
-          description: 裝置唯一標識符（Android | IOS | Browser）
-          enum: [Android, IOS, Browser]
+          description: 裝置唯一標識符
         eventId:
           type: string
           description: 事件唯一標識符（timestamp-CompanyId-EmployeeId-DeviceId 格式）
@@ -180,9 +179,6 @@ components:
     EventFlags:
       type: object
       properties:
-        duplicate_eventId:
-          type: boolean
-          description: 標示是否為重複的事件 ID
         unknown_eventType:
           type: boolean
           description: 標示是否為未知的事件類型
@@ -252,8 +248,8 @@ components:
             $ref: '#/components/schemas/Event'
         next_cursor:
           type: string
-          description: 用於獲取下一頁的 cursor，格式為 {timestamp}|{companyId}|{employeeId}|{deviceId}
-          example: "1768888894123|company123|employee456|device789"
+          description: 用於獲取下一頁的 cursor，格式為 {timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}
+          example: "1768888894123|company123|employee456|Android|device789"
         size:
           type: integer
           description: 返回的事件數量

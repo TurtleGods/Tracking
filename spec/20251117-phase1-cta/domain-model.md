@@ -11,11 +11,11 @@ The core domain object representing a user action or behavior event.
 - `screenId`: Identifier for the screen/view where the event occurred
 - `eventType`: Type of event (e.g., enter_screen, click, leave_screen)
 - `timestamp`: Epoch milliseconds when the event occurred
-- `deviceId`: Device identifier (Android | IOS | Browser)
-- `eventId`: Unique identifier for the event (timestamp-CompanyId-EmployeeId-DeviceId format)
+- `deviceId`: Device identifier (unique device ID rather than device type enum)
+- `eventId`: Unique identifier for the event (timestamp-CompanyId-EmployeeId-DeviceType-DeviceId format)
 - `metadata`: Additional data specific to the event type
 - `deviceInfo`: Information about the device where the event occurred
-- `flags`: Additional flags for the event (e.g., duplicate_eventId, unknown_eventType, extra_fields)
+- `flags`: Additional flags for the event (e.g., unknown_eventType, extra_fields)
 
 ## EventMetadata
 Metadata associated with different types of events.

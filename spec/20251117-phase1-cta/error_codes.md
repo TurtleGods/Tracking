@@ -80,6 +80,10 @@
 - **訊息**: "Invalid duration format. Must be a number representing milliseconds"
 - **說明**: duration 格式不正確時觸發
 
+- **錯誤代碼**: `INVALID_EVENT_ID_FORMAT`
+- **訊息**: "Invalid eventId format. Expected format: {timestamp}-{companyId}-{employeeId}-{deviceType}-{deviceId}"
+- **說明**: eventId 格式不符合預期格式時觸發
+
 ### 多餘欄位錯誤
 - **錯誤代碼**: `EXTRA_FIELDS_IN_METADATA`
 - **訊息**: "Extra fields found in metadata: {fieldNames}"
@@ -93,7 +97,7 @@
 
 ### 參數驗證錯誤
 - **錯誤代碼**: `INVALID_CURSOR_FORMAT`
-- **訊息**: "Invalid cursor format. Expected format: {timestamp}|{companyId}|{employeeId}|{deviceId}"
+- **訊息**: "Invalid cursor format. Expected format: {timestamp}|{companyId}|{employeeId}|{deviceType}|{deviceId}"
 - **說明**: 游標格式不正確時觸發（自動 fallback 到開頭）
 
 - **錯誤代碼**: `INVALID_SIZE_PARAMETER`
