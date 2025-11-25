@@ -152,3 +152,10 @@ project.nuget.cache
 *.vshost.*
 [Bb]in/
 [Oo]bj/
+
+# Custom
+
+.gemini
+.claude
+.qwen
+.specify/scripts
