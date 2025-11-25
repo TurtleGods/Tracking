@@ -14,7 +14,7 @@ User behavior is quit critical for us building Persona, but it cost too much for
 
 根據 [簡單調研](https://felo.ai/search/5vAbipj4VxsR2gokJ65VMf)，
 開源自架方案目前只有 [CLKLog](https://clklog.com/)，
-來自中國且商業版有額外費用，先不慮。ㄋ
+來自中國且商業版有額外費用，先不考慮。
 
 ## 追蹤的關鍵規格
 - **鏈式 API 設計**: `Page().name("Home").view()`, `Button().name("Submit").click()`
