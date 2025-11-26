@@ -10,6 +10,7 @@ var concurrency = int.TryParse(Environment.GetEnvironmentVariable("CONCURRENCY")
 var progress    = int.TryParse(Environment.GetEnvironmentVariable("PROGRESS_STEP") ?? "1000", out var p) && p > 0 ? p : 1000;                                                        
 var entityIdEnv = Environment.GetEnvironmentVariable("ENTITY_ID");                                                                                                                   
 var sessionIdEnv = Environment.GetEnvironmentVariable("SESSION_ID");                                                                                                                 
+var companyIdEnv = Environment.GetEnvironmentVariable("COMPANY_ID");                                                                                                                 
 var progressLock = new object();                                                                                                                                                     
                                                                                                                                                                                     
 var jsonOpts = new JsonSerializerOptions(JsonSerializerDefaults.Web); // camelCase for requests                                                                                      
@@ -19,7 +20,7 @@ Console.WriteLine($"Base={baseUrl} total={total} concurrency={concurrency}");
                                                                                                                                                                                     
 var entityId = Guid.TryParse(entityIdEnv, out var existingEntity)                                                                                                                    
     ? existingEntity                                                                                                                                                                 
-    : await CreateEntityAsync(client, jsonOpts);                                                                                                                                     
+    : await CreateEntityAsync(client, jsonOpts, companyIdEnv);                                                                                                                       
 var sessionId = Guid.TryParse(sessionIdEnv, out var existingSession)                                                                                                                 
     ? existingSession                                                                                                                                                                
     : await CreateSessionAsync(client, jsonOpts, entityId, total);                                                                                                                   
@@ -96,11 +97,13 @@ sw.Stop();
 var rps = total / sw.Elapsed.TotalSeconds;                                                                                                                                           
 Console.WriteLine($"Done in {sw.Elapsed.TotalSeconds:F2}s | sent={total} | failures={failures} | avg rps={rps:F1}");                                                                 
                                                                                                                                                                                     
-static async Task<Guid> CreateEntityAsync(HttpClient client, JsonSerializerOptions jsonOpts)                                                                                         
+static async Task<Guid> CreateEntityAsync(HttpClient client, JsonSerializerOptions jsonOpts, string? companyIdEnv)                                                                    
 {                                                                                                                                                                                    
+    var companyId = Guid.TryParse(companyIdEnv, out var parsedCompany) ? parsedCompany : Guid.NewGuid();                                                                             
     var req = new                                                                                                                                                                    
     {                                                                                                                                                                                
         creatorId = 999,                                                                                                                                                             
+        companyId = companyId,                                                                                                                                                       
         creatorEmail = "pt@example.com",                                                                                                                                             
         title = "PT",                                                                                                                                                                
         panels = "{}",                                                                                                                                                               
@@ -120,7 +123,6 @@ static async Task<Guid> CreateSessionAsync(HttpClient client, JsonSerializerOpti
     var req = new                                                                                                                                                                    
     {                                                                                                                                                                                
         userId = 1234L,                                                                                                                                                              
-        companyId = 4321L,                                                                                                                                                           
         startedAt = DateTime.UtcNow,                                                                                                                                                 
         lastActivityAt = DateTime.UtcNow,                                                                                                                                            
         endedAt = DateTime.UtcNow,                                                                                                                                                   
