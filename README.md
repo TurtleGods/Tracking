@@ -32,7 +32,16 @@ Create an entity:
 ```bash
 curl -X POST http://localhost:8080/entities \
   -H "Content-Type: application/json" \
-  -d '{"creatorId":1,"creatorEmail":"owner@example.com","title":"demo"}'
+  -d '{
+        "creatorId": 123,
+        "companyId": "c0a80101-1111-2222-3333-444455556666",
+        "creatorEmail": "owner@example.com",
+        "title": "Product Telemetry",
+        "panels": "{\"widgets\":[]}",
+        "collaborators": "[]",
+        "visibility": "private",
+        "isShared": false
+      }'
 ```
 Create a session:
 ```bash
@@ -70,6 +79,12 @@ dotnet run --project Tracking.LoadTester/Tracking.LoadTester.csproj
 # ENTITY_ID=<guid> SESSION_ID=<guid>  # reuse existing
 ```
 It creates a PT entity + session (unless you provide IDs) and sends `TOTAL_EVENTS` POSTs to `/entities/{entityId}/events`, printing in-place progress and RPS on completion.
+
+Dockerized run (isolated profile so it only runs when you ask):
+```bash
+docker-compose --profile loadtest run --rm loadtester
+# override envs with -e/--env-file if needed
+```
 
 ## Notes
 - Cascades are handled in the API via ordered `ALTER ... DELETE` mutations on child tables before deleting `main_entities`.

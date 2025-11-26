@@ -15,6 +15,7 @@ Content-Type: application/json
 
 {
   "creatorId": 1001,
+  "companyId": "11111111-1111-1111-1111-111111111111",
   "creatorEmail": "owner@example.com",
   "title": "Demo dashboard",
   "panels": "{}",

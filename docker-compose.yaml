@@ -10,6 +10,18 @@ services:
       - "8080:8080"
     depends_on:
       - clickhouse
+  loadtester:
+    build:
+      context: .
+      dockerfile: Tracking.LoadTester/Dockerfile
+    profiles: ["loadtest"]
+    environment:
+      - TARGET_BASE=http://api:8080
+      - TOTAL_EVENTS=100000
+      - CONCURRENCY=64
+      - PROGRESS_STEP=1000
+    depends_on:
+      - api
 
   clickhouse:
     image: clickhouse/clickhouse-server:24.3

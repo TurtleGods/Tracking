@@ -8,7 +8,10 @@ public sealed record MainEntity
     public Guid EntityId { get; init; }
 
     [JsonPropertyName("creator_id")]
-    public long CreatorId { get; init; }
+    public ulong CreatorId { get; init; }
+
+    [JsonPropertyName("company_id")]
+    public Guid CompanyId { get; init; }
 
     [JsonPropertyName("creator_email")]
     public string CreatorEmail { get; init; } = string.Empty;

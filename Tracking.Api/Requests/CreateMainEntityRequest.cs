@@ -6,7 +6,10 @@ namespace Tracking.Api.Requests;
 public sealed class CreateMainEntityRequest
 {
     [Required]
-    public long CreatorId { get; set; }
+    public ulong CreatorId { get; set; }
+
+    [Required]
+    public Guid CompanyId { get; set; }
 
     [Required]
     [EmailAddress]
@@ -32,6 +35,7 @@ public sealed class CreateMainEntityRequest
         {
             EntityId = Guid.NewGuid(),
             CreatorId = CreatorId,
+            CompanyId = CompanyId,
             CreatorEmail = CreatorEmail,
             Title = Title,
             Panels = Panels,

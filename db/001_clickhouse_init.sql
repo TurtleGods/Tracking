@@ -3,6 +3,7 @@ CREATE DATABASE IF NOT EXISTS tracking;
 CREATE TABLE IF NOT EXISTS tracking.main_entities
 (
     entity_id UUID,
+    company_id UUID,
     creator_id UInt64,
     creator_email String,
     title String,
@@ -24,7 +25,6 @@ CREATE TABLE IF NOT EXISTS tracking.tracking_sessions
     id UUID,
     entity_id UUID,
     user_id UInt64,
-    company_id UInt64,
     started_at DateTime64(3),
     last_activity_at DateTime64(3),
     ended_at DateTime64(3),

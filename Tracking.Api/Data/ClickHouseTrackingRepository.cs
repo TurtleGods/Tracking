@@ -31,6 +31,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         const string sql = """
             SELECT entity_id,
                    creator_id,
+                   company_id,
                    creator_email,
                    title,
                    panels,
@@ -56,7 +57,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             entities.Add(new MainEntity
             {
                 EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
-                CreatorId = reader.GetInt64(reader.GetOrdinal("creator_id")),
+                CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
+                CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
                 CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
                 Title = reader.GetString(reader.GetOrdinal("title")),
                 Panels = reader.GetString(reader.GetOrdinal("panels")),
@@ -79,6 +81,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             (
                 entity_id,
                 creator_id,
+                company_id,
                 creator_email,
                 title,
                 panels,
@@ -93,6 +96,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             (
                 @entity_id,
                 @creator_id,
+                @company_id,
                 @creator_email,
                 @title,
                 @panels,
@@ -432,7 +436,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
     private static void AddCommonParametersForEntity(DbCommand command, MainEntity entity)
     {
         AddParameter(command, "entity_id", DbType.Guid, entity.EntityId);
-        AddParameter(command, "creator_id", DbType.Int64, entity.CreatorId);
+        AddParameter(command, "creator_id", DbType.UInt64, entity.CreatorId);
+        AddParameter(command, "company_id", DbType.Guid, entity.CompanyId);
         AddParameter(command, "creator_email", DbType.String, entity.CreatorEmail);
         AddParameter(command, "title", DbType.String, entity.Title);
         AddParameter(command, "panels", DbType.String, entity.Panels);
