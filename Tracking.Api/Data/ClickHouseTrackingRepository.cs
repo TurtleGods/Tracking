@@ -121,7 +121,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             SELECT id,
                    entity_id,
                    user_id,
-                   company_id,
                    started_at,
                    last_activity_at,
                    ended_at,
@@ -155,7 +154,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 Id = reader.GetFieldValue<Guid>(reader.GetOrdinal("id")),
                 EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
                 UserId = reader.GetInt64(reader.GetOrdinal("user_id")),
-                CompanyId = reader.GetInt64(reader.GetOrdinal("company_id")),
                 StartedAt = reader.GetDateTime(reader.GetOrdinal("started_at")),
                 LastActivityAt = reader.GetDateTime(reader.GetOrdinal("last_activity_at")),
                 EndedAt = reader.GetDateTime(reader.GetOrdinal("ended_at")),
@@ -183,7 +181,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 id,
                 entity_id,
                 user_id,
-                company_id,
                 started_at,
                 last_activity_at,
                 ended_at,
@@ -203,7 +200,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 @id,
                 @entity_id,
                 @user_id,
-                @company_id,
                 @started_at,
                 @last_activity_at,
                 @ended_at,
@@ -225,7 +221,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         AddParameter(command, "id", DbType.Guid, session.Id);
         AddParameter(command, "entity_id", DbType.Guid, session.EntityId);
         AddParameter(command, "user_id", DbType.Int64, session.UserId);
-        AddParameter(command, "company_id", DbType.Int64, session.CompanyId);
         AddParameter(command, "started_at", DbType.DateTime2, session.StartedAt);
         AddParameter(command, "last_activity_at", DbType.DateTime2, session.LastActivityAt);
         AddParameter(command, "ended_at", DbType.DateTime2, session.EndedAt);
