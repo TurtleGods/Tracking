@@ -102,10 +102,11 @@ static async Task<Guid> CreateEntityAsync(HttpClient client, JsonSerializerOptio
     var companyId = Guid.TryParse(companyIdEnv, out var parsedCompany) ? parsedCompany : Guid.NewGuid();                                                                             
     var req = new                                                                                                                                                                    
     {                                                                                                                                                                                
-        creatorId = 999,                                                                                                                                                             
-        companyId = companyId,                                                                                                                                                       
+        creatorId = 999,
+        companyId,                                                                                                                                                       
         creatorEmail = "pt@example.com",                                                                                                                                             
-        title = "PT",                                                                                                                                                                
+        title = "FD",
+        production="FD",                                                                                                                                                                
         panels = "{}",                                                                                                                                                               
         collaborators = "[]",                                                                                                                                                        
         visibility = "private",                                                                                                                                                      

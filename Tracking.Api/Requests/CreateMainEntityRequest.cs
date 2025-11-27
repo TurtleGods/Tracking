@@ -17,6 +17,7 @@ public sealed class CreateMainEntityRequest
 
     [Required]
     public string Title { get; set; } = string.Empty;
+    public string Production {get;set;}="";
 
     public string Panels { get; set; } = "{}";
 
@@ -28,16 +29,17 @@ public sealed class CreateMainEntityRequest
 
     public Guid? SharedToken { get; set; }
 
-    public MainEntity ToMainEntity()
+    public MainEntity ToMainEntity(Guid entityId)
     {
         var now = DateTime.UtcNow;
         return new MainEntity
         {
-            EntityId = Guid.NewGuid(),
+            EntityId = entityId,
             CreatorId = CreatorId,
             CompanyId = CompanyId,
             CreatorEmail = CreatorEmail,
             Title = Title,
+            Production = Production,
             Panels = Panels,
             Collaborators = Collaborators,
             Visibility = Visibility,

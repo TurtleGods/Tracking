@@ -18,6 +18,8 @@ public sealed record MainEntity
 
     [JsonPropertyName("title")]
     public string Title { get; init; } = string.Empty;
+    [JsonPropertyName("production")]
+    public string Production {get;init;}="";
 
     [JsonPropertyName("panels")]
     public string Panels { get; init; } = "{}";

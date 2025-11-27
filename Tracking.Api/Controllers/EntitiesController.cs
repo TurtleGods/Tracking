@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Tracking.Api.Data;
 using Tracking.Api.Models;
 using Tracking.Api.Requests;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Tracking.Api.Controllers;
 
@@ -27,9 +29,31 @@ public sealed class EntitiesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<MainEntity>> Create([FromBody] CreateMainEntityRequest request, CancellationToken cancellationToken = default)
     {
-        var entity = request.ToMainEntity();
-        await _repository.InsertMainEntityAsync(entity, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { entityId = entity.EntityId }, entity);
+        var cid = Request.Cookies["cid"];
+        if (string.IsNullOrWhiteSpace(cid))
+        {
+            return Unauthorized("Missing cid cookie. Please log in again.");
+        }
+
+        var productions = new[] { "PT", "PY", "FD" };
+        var ensured = new List<MainEntity>();
+
+        foreach (var production in productions)
+        {
+            var entityId = CreateDeterministicEntityId(production, cid);
+            var existing = await _repository.GetMainEntityByIdAsync(entityId, cancellationToken);
+            if (existing is not null)
+            {
+                ensured.Add(existing);
+                continue;
+            }
+
+            var entity = request.ToMainEntity(entityId);
+            ensured.Add(entity);
+            await _repository.InsertMainEntityAsync(entity, cancellationToken);
+        }
+
+        return Ok(ensured);
     }
 
     [HttpGet("{entityId:guid}")]
@@ -45,6 +69,14 @@ public sealed class EntitiesController : ControllerBase
     {
         await _repository.DeleteEntityCascadeAsync(entityId, cancellationToken);
         return NoContent();
+    }
+
+    private static Guid CreateDeterministicEntityId(string production, string cid)
+    {
+        var key = $"{production}:{cid}".ToLowerInvariant();
+        using var md5 = MD5.Create();
+        var bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(key));
+        return new Guid(bytes);
     }
 
     private static int NormalizeLimit(int limit) => limit switch

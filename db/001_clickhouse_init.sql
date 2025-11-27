@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS tracking.main_entities
     creator_email String,
     title String,
     panels String,
+    production String,
     collaborators String,
     visibility LowCardinality(String),
     is_shared UInt8,

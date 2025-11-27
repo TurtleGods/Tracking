@@ -8,6 +8,8 @@ namespace Tracking.Api.Data;
 public interface ITrackingRepository
 {
     Task<IEnumerable<MainEntity>> GetMainEntitiesAsync(int limit, CancellationToken cancellationToken);
+    Task<MainEntity?> GetMainEntityByCompanyAsync(Guid companyId, CancellationToken cancellationToken);
+    Task<MainEntity?> GetMainEntityByIdAsync(Guid entityId, CancellationToken cancellationToken);
     Task InsertMainEntityAsync(MainEntity entity, CancellationToken cancellationToken);
     Task<IEnumerable<TrackingSession>> GetSessionsAsync(Guid entityId, int limit, CancellationToken cancellationToken);
     Task InsertSessionAsync(TrackingSession session, CancellationToken cancellationToken);
@@ -72,6 +74,101 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         }
 
         return entities;
+    }
+
+    public async Task<MainEntity?> GetMainEntityByIdAsync(Guid entityId, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT entity_id,
+                   creator_id,
+                   company_id,
+                   creator_email,
+                   title,
+                   panels,
+                   collaborators,
+                   visibility,
+                   is_shared,
+                   shared_token,
+                   created_at,
+                   updated_at
+            FROM main_entities
+            WHERE entity_id = @entity_id
+            LIMIT 1;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "entity_id", DbType.Guid, entityId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new MainEntity
+        {
+            EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
+            CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
+            CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
+            CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
+            Title = reader.GetString(reader.GetOrdinal("title")),
+            Panels = reader.GetString(reader.GetOrdinal("panels")),
+            Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
+            Visibility = reader.GetString(reader.GetOrdinal("visibility")),
+            IsShared = reader.GetByte(reader.GetOrdinal("is_shared")) == 1,
+            SharedToken = reader.GetFieldValue<Guid>(reader.GetOrdinal("shared_token")),
+            CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
+            UpdatedAt = reader.GetDateTime(reader.GetOrdinal("updated_at"))
+        };
+    }
+
+    public async Task<MainEntity?> GetMainEntityByCompanyAsync(Guid companyId, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT entity_id,
+                   creator_id,
+                   company_id,
+                   creator_email,
+                   title,
+                   panels,
+                   collaborators,
+                   visibility,
+                   is_shared,
+                   shared_token,
+                   created_at,
+                   updated_at
+            FROM main_entities
+            WHERE company_id = @company_id
+            ORDER BY created_at DESC
+            LIMIT 1;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "company_id", DbType.Guid, companyId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new MainEntity
+        {
+            EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
+            CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
+            CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
+            CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
+            Title = reader.GetString(reader.GetOrdinal("title")),
+            Panels = reader.GetString(reader.GetOrdinal("panels")),
+            Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
+            Visibility = reader.GetString(reader.GetOrdinal("visibility")),
+            IsShared = reader.GetByte(reader.GetOrdinal("is_shared")) == 1,
+            SharedToken = reader.GetFieldValue<Guid>(reader.GetOrdinal("shared_token")),
+            CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
+            UpdatedAt = reader.GetDateTime(reader.GetOrdinal("updated_at"))
+        };
     }
 
     public async Task InsertMainEntityAsync(MainEntity entity, CancellationToken cancellationToken)

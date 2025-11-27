@@ -36,13 +36,15 @@ curl -X POST http://localhost:8080/entities \
         "creatorId": 123,
         "companyId": "c0a80101-1111-2222-3333-444455556666",
         "creatorEmail": "owner@example.com",
-        "title": "Product Telemetry",
+        "title": "Product Telemetry - PT",
+        "productionName": "PT",
         "panels": "{\"widgets\":[]}",
         "collaborators": "[]",
         "visibility": "private",
         "isShared": false
       }'
 ```
+Requires cookie `cid=<token>` on the request; the API derives deterministic `entity_id` values from `cid` for each production (`PT`, `PY`, `FD`) and will create any missing entities (reusing existing ones). Missing cookie returns 401 prompting re-login.
 Create a session:
 ```bash
 curl -X POST http://localhost:8080/entities/{entityId}/sessions \
