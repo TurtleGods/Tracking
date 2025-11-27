@@ -33,9 +33,9 @@ public sealed class SessionsController : ControllerBase
     }
 
     [HttpDelete("{sessionId:guid}")]
-    public async Task<IActionResult> Delete(Guid entityId, Guid sessionId, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Delete(Guid sessionId, CancellationToken cancellationToken = default)
     {
-        await _repository.DeleteSessionCascadeAsync(entityId, sessionId, cancellationToken);
+        await _repository.DeleteSessionCascadeAsync(sessionId, cancellationToken);
         return NoContent();
     }
 

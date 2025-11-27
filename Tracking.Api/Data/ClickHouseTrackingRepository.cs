@@ -16,7 +16,7 @@ public interface ITrackingRepository
     Task<IEnumerable<TrackingEvent>> GetEventsAsync(Guid entityId, int limit, CancellationToken cancellationToken);
     Task InsertEventAsync(TrackingEvent trackingEvent, CancellationToken cancellationToken);
     Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken);
-    Task DeleteSessionCascadeAsync(Guid entityId, Guid sessionId, CancellationToken cancellationToken);
+    Task DeleteSessionCascadeAsync(Guid sessionId, CancellationToken cancellationToken);
 }
 
 public sealed class ClickHouseTrackingRepository : ITrackingRepository
@@ -465,23 +465,21 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         }
     }
 
-    public async Task DeleteSessionCascadeAsync(Guid entityId, Guid sessionId, CancellationToken cancellationToken)
+    public async Task DeleteSessionCascadeAsync( Guid sessionId, CancellationToken cancellationToken)
     {
-        const string deleteEvents = "ALTER TABLE tracking_events DELETE WHERE entity_id = @entity_id AND session_id = @session_id;";
-        const string deleteSession = "ALTER TABLE tracking_sessions DELETE WHERE entity_id = @entity_id AND session_id = @session_id;";
+        const string deleteEvents = "ALTER TABLE tracking_events DELETE WHERE session_id = @session_id;";
+        const string deleteSession = "ALTER TABLE tracking_sessions DELETE WHERE session_id = @session_id;";
 
         await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
 
         await using (var command = CreateCommand(connection, deleteEvents))
         {
-            AddParameter(command, "entity_id", DbType.Guid, entityId);
             AddParameter(command, "session_id", DbType.Guid, sessionId);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
         await using (var command = CreateCommand(connection, deleteSession))
         {
-            AddParameter(command, "entity_id", DbType.Guid, entityId);
             AddParameter(command, "session_id", DbType.Guid, sessionId);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
