@@ -217,7 +217,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         const string sql = """
             SELECT session_id,
                    entity_id,
-                   user_id,
+                   employee_id,
                    company_id,
                    started_at,
                    last_activity_at,
@@ -242,7 +242,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             {
                 SessionId = reader.GetFieldValue<Guid>(reader.GetOrdinal("session_id")),
                 EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
-                EmployeeId = reader.GetFieldValue<Guid>(reader.GetOrdinal("user_id")),
+                EmployeeId = reader.GetFieldValue<Guid>(reader.GetOrdinal("employee_id")),
                 CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
                 StartedAt = reader.GetDateTime(reader.GetOrdinal("started_at")),
                 LastActivityAt = reader.GetDateTime(reader.GetOrdinal("last_activity_at")),
@@ -263,7 +263,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             (
                 session_id,
                 entity_id,
-                user_id,
+                employee_id,
                 company_id,
                 started_at,
                 last_activity_at,
@@ -274,7 +274,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             (
                 @session_id,
                 @entity_id,
-                @user_id,
+                @employee_id,
                 @company_id,
                 @started_at,
                 @last_activity_at,
@@ -287,7 +287,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         await using var command = CreateCommand(connection, sql);
         AddParameter(command, "session_id", DbType.Guid, session.SessionId);
         AddParameter(command, "entity_id", DbType.Guid, session.EntityId);
-        AddParameter(command, "user_id", DbType.Guid, session.EmployeeId);
+        AddParameter(command, "employee_id", DbType.Guid, session.EmployeeId);
         AddParameter(command, "company_id", DbType.Guid, session.CompanyId);
         AddParameter(command, "started_at", DbType.DateTime2, session.StartedAt);
         AddParameter(command, "last_activity_at", DbType.DateTime2, session.LastActivityAt);
@@ -310,7 +310,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                    timestamp,
                    refer,
                    expose_time,
-                   user_id,
+                   employee_id,
                    company_id,
                    device_type,
                    os_version,
@@ -348,7 +348,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 Timestamp = reader.GetDateTime(reader.GetOrdinal("timestamp")),
                 Refer = reader.GetString(reader.GetOrdinal("refer")),
                 ExposeTime = reader.GetInt32(reader.GetOrdinal("expose_time")),
-                UserId = reader.GetInt64(reader.GetOrdinal("user_id")),
+                UserId = reader.GetInt64(reader.GetOrdinal("employee_id")),
                 CompanyId = reader.GetInt64(reader.GetOrdinal("company_id")),
                 DeviceType = reader.GetString(reader.GetOrdinal("device_type")),
                 OsVersion = reader.GetString(reader.GetOrdinal("os_version")),
@@ -380,7 +380,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 timestamp,
                 refer,
                 expose_time,
-                user_id,
+                employee_id,
                 company_id,
                 device_type,
                 os_version,
@@ -404,7 +404,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 @timestamp,
                 @refer,
                 @expose_time,
-                @user_id,
+                @employee_id,
                 @company_id,
                 @device_type,
                 @os_version,
@@ -430,7 +430,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         AddParameter(command, "timestamp", DbType.DateTime2, trackingEvent.Timestamp);
         AddParameter(command, "refer", DbType.String, trackingEvent.Refer);
         AddParameter(command, "expose_time", DbType.Int32, trackingEvent.ExposeTime);
-        AddParameter(command, "user_id", DbType.Int64, trackingEvent.UserId);
+        AddParameter(command, "employee_id", DbType.Int64, trackingEvent.UserId);
         AddParameter(command, "company_id", DbType.Int64, trackingEvent.CompanyId);
         AddParameter(command, "device_type", DbType.String, trackingEvent.DeviceType);
         AddParameter(command, "os_version", DbType.String, trackingEvent.OsVersion);

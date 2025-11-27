@@ -29,7 +29,7 @@ public sealed class SessionsController : ControllerBase
     {
         var session = request.ToTrackingSession(entityId);
         await _repository.InsertSessionAsync(session, cancellationToken);
-        return CreatedAtAction(nameof(Get), new { entityId, id = session.Id }, session);
+        return CreatedAtAction(nameof(Get), new { entityId, id = session.SessionId }, session);
     }
 
     [HttpDelete("{sessionId:guid}")]

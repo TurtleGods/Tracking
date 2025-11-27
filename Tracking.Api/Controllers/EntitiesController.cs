@@ -30,8 +30,8 @@ public sealed class EntitiesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<MainEntity>> Create([FromBody] CreateMainEntityRequest request, CancellationToken cancellationToken = default)
     {
-        var company_id = ExtractCidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
-        if (string.IsNullOrWhiteSpace(company_id))
+        var companyIdClaim = ExtractCidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
+        if (string.IsNullOrWhiteSpace(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyId))
         {
             return Unauthorized("Missing or invalid session cookie. Please log in again.");
         }
@@ -41,18 +41,27 @@ public sealed class EntitiesController : ControllerBase
 
         foreach (var production in productions)
         {
-            var entityId = CreateDeterministicEntityId(production, company_id);
+            var entityId = CreateDeterministicEntityId(production, companyIdClaim);
             var existing = await _repository.GetMainEntityByIdAsync(entityId, cancellationToken);
             if (existing is not null)
             {
                 ensured.Add(existing);
                 continue;
             }
-            var mainEntity = new MainEntity()
+            var mainEntity = new MainEntity
             {
                 EntityId = entityId,
                 Production = production,
-                CompanyId=new Guid(company_id),
+                CompanyId = companyId,
+                CreatorId = request.CreatorId,
+                CreatorEmail = request.CreatorEmail,
+                Panels = request.Panels,
+                Collaborators = request.Collaborators,
+                Visibility = request.Visibility,
+                IsShared = request.IsShared,
+                SharedToken = request.SharedToken ?? Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
             var entity = request.ToMainEntity(mainEntity);
             ensured.Add(entity);

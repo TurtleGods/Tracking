@@ -28,21 +28,20 @@ public sealed class CreateMainEntityRequest
 
     public MainEntity ToMainEntity(MainEntity mainEntity)
     {
-        var now = DateTime.UtcNow;
         return new MainEntity
         {
             EntityId = mainEntity.EntityId,
-            CreatorId = CreatorId,
+            CreatorId = mainEntity.CreatorId,
             CompanyId = mainEntity.CompanyId,
-            CreatorEmail = CreatorEmail,
+            CreatorEmail = mainEntity.CreatorEmail,
             Production = mainEntity.Production,
-            Panels = Panels,
-            Collaborators = Collaborators,
-            Visibility = Visibility,
-            IsShared = IsShared,
-            SharedToken = SharedToken ?? Guid.NewGuid(),
-            CreatedAt = now,
-            UpdatedAt = now
+            Panels = mainEntity.Panels,
+            Collaborators = mainEntity.Collaborators,
+            Visibility = mainEntity.Visibility,
+            IsShared = mainEntity.IsShared,
+            SharedToken = mainEntity.SharedToken,
+            CreatedAt = mainEntity.CreatedAt,
+            UpdatedAt = mainEntity.UpdatedAt
         };
     }
 }

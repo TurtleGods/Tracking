@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS tracking.tracking_sessions
 (
     session_id UUID,
     entity_id UUID,
-    user_id UUID,
+    employee_id UUID,
     company_id UUID,
     started_at DateTime64(3),
     last_activity_at DateTime64(3),
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS tracking.tracking_events
     timestamp DateTime64(3),
     refer String,
     expose_time Int32,
-    user_id UInt64,
+    employee_id UUID,
     company_id UInt64,
     device_type String,
     os_version String,
