@@ -4,6 +4,7 @@ using Tracking.Api.Models;
 using Tracking.Api.Requests;
 using System.Security.Cryptography;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Tracking.Api.Controllers;
 
@@ -29,10 +30,10 @@ public sealed class EntitiesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<MainEntity>> Create([FromBody] CreateMainEntityRequest request, CancellationToken cancellationToken = default)
     {
-        var cid = Request.Cookies["cid"];
+        var cid = ExtractCidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
         if (string.IsNullOrWhiteSpace(cid))
         {
-            return Unauthorized("Missing cid cookie. Please log in again.");
+            return Unauthorized("Missing or invalid session cookie. Please log in again.");
         }
 
         var productions = new[] { "PT", "PY", "FD" };
@@ -77,6 +78,25 @@ public sealed class EntitiesController : ControllerBase
         using var md5 = MD5.Create();
         var bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(key));
         return new Guid(bytes);
+    }
+
+    private static string? ExtractCidFromCookie(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+            return jwt.Claims.FirstOrDefault(c => c.Type == "cid")?.Value;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static int NormalizeLimit(int limit) => limit switch

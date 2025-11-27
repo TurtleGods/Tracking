@@ -44,7 +44,7 @@ curl -X POST http://localhost:8080/entities \
         "isShared": false
       }'
 ```
-Requires cookie `cid=<token>` on the request; the API derives deterministic `entity_id` values from `cid` for each production (`PT`, `PY`, `FD`) and will create any missing entities (reusing existing ones). Missing cookie returns 401 prompting re-login.
+Requires JWT cookie `__ModuleSessionCookie` with a `cid` claim; the API extracts `cid` from the token, derives deterministic `entity_id` values for each production (`PT`, `PY`, `FD`), and will create any missing entities (reusing existing ones). Missing/invalid cookie returns 401 prompting re-login.
 Create a session:
 ```bash
 curl -X POST http://localhost:8080/entities/{entityId}/sessions \
