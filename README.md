@@ -48,7 +48,7 @@ Create a session:
 ```bash
 curl -X POST http://localhost:8080/entities/{entityId}/sessions \
   -H "Content-Type: application/json" \
-  -d '{"userId":1,"companyId":1,"deviceType":"web"}'
+  -d '{"userId":"11111111-2222-3333-4444-555555555555","companyId":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","startedAt":"2024-01-01T00:00:00Z"}'
 ```
 Create an event:
 ```bash

@@ -30,8 +30,8 @@ public sealed class EntitiesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<MainEntity>> Create([FromBody] CreateMainEntityRequest request, CancellationToken cancellationToken = default)
     {
-        var cid = ExtractCidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
-        if (string.IsNullOrWhiteSpace(cid))
+        var company_id = ExtractCidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
+        if (string.IsNullOrWhiteSpace(company_id))
         {
             return Unauthorized("Missing or invalid session cookie. Please log in again.");
         }
@@ -41,15 +41,20 @@ public sealed class EntitiesController : ControllerBase
 
         foreach (var production in productions)
         {
-            var entityId = CreateDeterministicEntityId(production, cid);
+            var entityId = CreateDeterministicEntityId(production, company_id);
             var existing = await _repository.GetMainEntityByIdAsync(entityId, cancellationToken);
             if (existing is not null)
             {
                 ensured.Add(existing);
                 continue;
             }
-
-            var entity = request.ToMainEntity(entityId, production);
+            var mainEntity = new MainEntity()
+            {
+                EntityId = entityId,
+                Production = production,
+                CompanyId=new Guid(company_id),
+            };
+            var entity = request.ToMainEntity(mainEntity);
             ensured.Add(entity);
             await _repository.InsertMainEntityAsync(entity, cancellationToken);
         }

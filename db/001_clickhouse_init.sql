@@ -22,25 +22,17 @@ TTL toDateTime(created_at) + INTERVAL 365 DAY DELETE;
 
 CREATE TABLE IF NOT EXISTS tracking.tracking_sessions
 (
-    id UUID,
+    session_id UUID,
     entity_id UUID,
-    user_id UInt64,
+    user_id UUID,
+    company_id UUID,
     started_at DateTime64(3),
     last_activity_at DateTime64(3),
-    ended_at DateTime64(3),
-    total_events UInt32,
-    total_views UInt32,
-    total_clicks UInt32,
-    total_exposes UInt32,
-    total_disappears UInt32,
-    device_type String,
-    device_model String,
-    entry_page String,
-    exit_page String,
+    ended_at Nullable(DateTime64(3)),
     created_at DateTime64(3) DEFAULT now64()
 ) ENGINE = MergeTree
 PARTITION BY toYYYYMM(started_at)
-ORDER BY (entity_id, started_at, id)
+ORDER BY (entity_id, started_at, session_id)
 TTL toDateTime(started_at) + INTERVAL 180 DAY DELETE;
 
 CREATE TABLE IF NOT EXISTS tracking.tracking_events

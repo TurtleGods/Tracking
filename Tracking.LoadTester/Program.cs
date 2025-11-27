@@ -122,29 +122,21 @@ static async Task<Guid> CreateSessionAsync(HttpClient client, JsonSerializerOpti
 {                                                                                                                                                                                    
     var req = new                                                                                                                                                                    
     {                                                                                                                                                                                
-        userId = 1234L,                                                                                                                                                              
+        employeeId = Guid.NewGuid(),                                                                                                                                                     
+        companyId = Guid.NewGuid(),                                                                                                                                                  
         startedAt = DateTime.UtcNow,                                                                                                                                                 
         lastActivityAt = DateTime.UtcNow,                                                                                                                                            
-        endedAt = DateTime.UtcNow,                                                                                                                                                   
-        totalEvents = totalEvents,                                                                                                                                                   
-        totalViews = totalEvents / 2,                                                                                                                                                
-        totalClicks = totalEvents / 3,                                                                                                                                               
-        totalExposes = totalEvents / 4,                                                                                                                                              
-        totalDisappears = totalEvents / 5,                                                                                                                                           
-        deviceType = "web",                                                                                                                                                          
-        deviceModel = "browser",                                                                                                                                                     
-        entryPage = "/landing",                                                                                                                                                      
-        exitPage = "/exit"                                                                                                                                                           
+        endedAt = (DateTime?)null                                                                                                                                                    
     };                                                                                                                                                                               
                                                                                                                                                                                     
     using var resp = await client.PostAsJsonAsync($"entities/{entityId}/sessions", req, jsonOpts);                                                                                   
     resp.EnsureSuccessStatusCode();                                                                                                                                                  
     var body = await resp.Content.ReadFromJsonAsync<SessionResponse>();                                                                                                              
-    return body?.Id ?? throw new InvalidOperationException("Missing session id");                                                                                                    
+    return body?.SessionId ?? throw new InvalidOperationException("Missing session id");                                                                                             
 }                                                                                                                                                                                    
                                                                                                                                                                                     
 public sealed record EntityResponse([property: JsonPropertyName("entity_id")] Guid EntityId);                                                                                        
-public sealed record SessionResponse([property: JsonPropertyName("id")] Guid Id);                                                                                                    
+public sealed record SessionResponse([property: JsonPropertyName("session_id")] Guid SessionId);                                                                                     
 public sealed class TrackingEventRequest                                                                                                                                             
 {                                                                                                                                                                                    
     public Guid SessionId { get; set; }                                                                                                                                              

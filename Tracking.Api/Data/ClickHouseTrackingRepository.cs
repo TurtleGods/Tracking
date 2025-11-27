@@ -215,21 +215,13 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
     public async Task<IEnumerable<TrackingSession>> GetSessionsAsync(Guid entityId, int limit, CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT id,
+            SELECT session_id,
                    entity_id,
                    user_id,
+                   company_id,
                    started_at,
                    last_activity_at,
                    ended_at,
-                   total_events,
-                   total_views,
-                   total_clicks,
-                   total_exposes,
-                   total_disappears,
-                   device_type,
-                   device_model,
-                   entry_page,
-                   exit_page,
                    created_at
             FROM tracking_sessions
             WHERE entity_id = @entity_id
@@ -248,21 +240,15 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         {
             sessions.Add(new TrackingSession
             {
-                Id = reader.GetFieldValue<Guid>(reader.GetOrdinal("id")),
+                SessionId = reader.GetFieldValue<Guid>(reader.GetOrdinal("session_id")),
                 EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
-                UserId = reader.GetInt64(reader.GetOrdinal("user_id")),
+                EmployeeId = reader.GetFieldValue<Guid>(reader.GetOrdinal("user_id")),
+                CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
                 StartedAt = reader.GetDateTime(reader.GetOrdinal("started_at")),
                 LastActivityAt = reader.GetDateTime(reader.GetOrdinal("last_activity_at")),
-                EndedAt = reader.GetDateTime(reader.GetOrdinal("ended_at")),
-                TotalEvents = reader.GetInt32(reader.GetOrdinal("total_events")),
-                TotalViews = reader.GetInt32(reader.GetOrdinal("total_views")),
-                TotalClicks = reader.GetInt32(reader.GetOrdinal("total_clicks")),
-                TotalExposes = reader.GetInt32(reader.GetOrdinal("total_exposes")),
-                TotalDisappears = reader.GetInt32(reader.GetOrdinal("total_disappears")),
-                DeviceType = reader.GetString(reader.GetOrdinal("device_type")),
-                DeviceModel = reader.GetString(reader.GetOrdinal("device_model")),
-                EntryPage = reader.GetString(reader.GetOrdinal("entry_page")),
-                ExitPage = reader.GetString(reader.GetOrdinal("exit_page")),
+                EndedAt = reader.IsDBNull(reader.GetOrdinal("ended_at"))
+                    ? null
+                    : reader.GetDateTime(reader.GetOrdinal("ended_at")),
                 CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"))
             });
         }
@@ -275,61 +261,37 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         const string sql = """
             INSERT INTO tracking_sessions
             (
-                id,
+                session_id,
                 entity_id,
                 user_id,
+                company_id,
                 started_at,
                 last_activity_at,
                 ended_at,
-                total_events,
-                total_views,
-                total_clicks,
-                total_exposes,
-                total_disappears,
-                device_type,
-                device_model,
-                entry_page,
-                exit_page,
                 created_at
             )
             VALUES
             (
-                @id,
+                @session_id,
                 @entity_id,
                 @user_id,
+                @company_id,
                 @started_at,
                 @last_activity_at,
                 @ended_at,
-                @total_events,
-                @total_views,
-                @total_clicks,
-                @total_exposes,
-                @total_disappears,
-                @device_type,
-                @device_model,
-                @entry_page,
-                @exit_page,
                 @created_at
             );
             """;
 
         await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
         await using var command = CreateCommand(connection, sql);
-        AddParameter(command, "id", DbType.Guid, session.Id);
+        AddParameter(command, "session_id", DbType.Guid, session.SessionId);
         AddParameter(command, "entity_id", DbType.Guid, session.EntityId);
-        AddParameter(command, "user_id", DbType.Int64, session.UserId);
+        AddParameter(command, "user_id", DbType.Guid, session.EmployeeId);
+        AddParameter(command, "company_id", DbType.Guid, session.CompanyId);
         AddParameter(command, "started_at", DbType.DateTime2, session.StartedAt);
         AddParameter(command, "last_activity_at", DbType.DateTime2, session.LastActivityAt);
-        AddParameter(command, "ended_at", DbType.DateTime2, session.EndedAt);
-        AddParameter(command, "total_events", DbType.Int32, session.TotalEvents);
-        AddParameter(command, "total_views", DbType.Int32, session.TotalViews);
-        AddParameter(command, "total_clicks", DbType.Int32, session.TotalClicks);
-        AddParameter(command, "total_exposes", DbType.Int32, session.TotalExposes);
-        AddParameter(command, "total_disappears", DbType.Int32, session.TotalDisappears);
-        AddParameter(command, "device_type", DbType.String, session.DeviceType);
-        AddParameter(command, "device_model", DbType.String, session.DeviceModel);
-        AddParameter(command, "entry_page", DbType.String, session.EntryPage);
-        AddParameter(command, "exit_page", DbType.String, session.ExitPage);
+        AddParameter(command, "ended_at", DbType.DateTime2, (object?)session.EndedAt ?? DBNull.Value);
         AddParameter(command, "created_at", DbType.DateTime2, session.CreatedAt);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -506,7 +468,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
     public async Task DeleteSessionCascadeAsync(Guid entityId, Guid sessionId, CancellationToken cancellationToken)
     {
         const string deleteEvents = "ALTER TABLE tracking_events DELETE WHERE entity_id = @entity_id AND session_id = @session_id;";
-        const string deleteSession = "ALTER TABLE tracking_sessions DELETE WHERE entity_id = @entity_id AND id = @session_id;";
+        const string deleteSession = "ALTER TABLE tracking_sessions DELETE WHERE entity_id = @entity_id AND session_id = @session_id;";
 
         await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
 

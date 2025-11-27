@@ -26,16 +26,16 @@ public sealed class CreateMainEntityRequest
 
     public Guid? SharedToken { get; set; }
 
-    public MainEntity ToMainEntity(Guid entityId, string production)
+    public MainEntity ToMainEntity(MainEntity mainEntity)
     {
         var now = DateTime.UtcNow;
         return new MainEntity
         {
-            EntityId = entityId,
+            EntityId = mainEntity.EntityId,
             CreatorId = CreatorId,
-            CompanyId = CompanyId,
+            CompanyId = mainEntity.CompanyId,
             CreatorEmail = CreatorEmail,
-            Production = production,
+            Production = mainEntity.Production,
             Panels = Panels,
             Collaborators = Collaborators,
             Visibility = Visibility,
