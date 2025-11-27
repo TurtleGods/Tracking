@@ -35,7 +35,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                    creator_id,
                    company_id,
                    creator_email,
-                   title,
+                   production,
                    panels,
                    collaborators,
                    visibility,
@@ -62,7 +62,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
                 CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
                 CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
-                Title = reader.GetString(reader.GetOrdinal("title")),
+                Production = reader.GetString(reader.GetOrdinal("production")),
                 Panels = reader.GetString(reader.GetOrdinal("panels")),
                 Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
                 Visibility = reader.GetString(reader.GetOrdinal("visibility")),
@@ -83,7 +83,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                    creator_id,
                    company_id,
                    creator_email,
-                   title,
+                   production,
                    panels,
                    collaborators,
                    visibility,
@@ -112,7 +112,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
             CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
             CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
-            Title = reader.GetString(reader.GetOrdinal("title")),
+            Production = reader.GetString(reader.GetOrdinal("production")),
             Panels = reader.GetString(reader.GetOrdinal("panels")),
             Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
             Visibility = reader.GetString(reader.GetOrdinal("visibility")),
@@ -130,7 +130,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                    creator_id,
                    company_id,
                    creator_email,
-                   title,
+                   production,
                    panels,
                    collaborators,
                    visibility,
@@ -160,7 +160,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
             CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
             CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
-            Title = reader.GetString(reader.GetOrdinal("title")),
+            Production = reader.GetString(reader.GetOrdinal("production")),
             Panels = reader.GetString(reader.GetOrdinal("panels")),
             Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
             Visibility = reader.GetString(reader.GetOrdinal("visibility")),
@@ -180,7 +180,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 creator_id,
                 company_id,
                 creator_email,
-                title,
+                production,
                 panels,
                 collaborators,
                 visibility,
@@ -195,7 +195,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 @creator_id,
                 @company_id,
                 @creator_email,
-                @title,
+                @production,
                 @panels,
                 @collaborators,
                 @visibility,
@@ -531,7 +531,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         AddParameter(command, "creator_id", DbType.UInt64, entity.CreatorId);
         AddParameter(command, "company_id", DbType.Guid, entity.CompanyId);
         AddParameter(command, "creator_email", DbType.String, entity.CreatorEmail);
-        AddParameter(command, "title", DbType.String, entity.Title);
+        AddParameter(command, "production", DbType.String, entity.Production);
         AddParameter(command, "panels", DbType.String, entity.Panels);
         AddParameter(command, "collaborators", DbType.String, entity.Collaborators);
         AddParameter(command, "visibility", DbType.String, entity.Visibility);

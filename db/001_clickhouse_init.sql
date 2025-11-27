@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS tracking.main_entities
     company_id UUID,
     creator_id UInt64,
     creator_email String,
-    title String,
     panels String,
     production String,
     collaborators String,

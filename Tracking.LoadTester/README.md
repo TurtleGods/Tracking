@@ -33,7 +33,7 @@ Console output shows entity/session IDs, per-event logging, total time, failures
 - `SESSION_ID` (optional) – reuse an existing session (must match `ENTITY_ID`)
 
 ## What it does
-1. Creates an entity titled “PT” unless `ENTITY_ID` is provided.
+1. Creates an entity production “PT” unless `ENTITY_ID` is provided.
 2. Creates a session tied to that entity unless `SESSION_ID` is provided.
 3. Sends `TOTAL_EVENTS` POSTs to `POST /entities/{entityId}/events` with realistic payloads (behavior events, page metadata, device/network info).
 

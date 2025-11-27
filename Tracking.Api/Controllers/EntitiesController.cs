@@ -49,7 +49,7 @@ public sealed class EntitiesController : ControllerBase
                 continue;
             }
 
-            var entity = request.ToMainEntity(entityId);
+            var entity = request.ToMainEntity(entityId, production);
             ensured.Add(entity);
             await _repository.InsertMainEntityAsync(entity, cancellationToken);
         }

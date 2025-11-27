@@ -16,10 +16,8 @@ public sealed record MainEntity
     [JsonPropertyName("creator_email")]
     public string CreatorEmail { get; init; } = string.Empty;
 
-    [JsonPropertyName("title")]
-    public string Title { get; init; } = string.Empty;
     [JsonPropertyName("production")]
-    public string Production {get;init;}="";
+    public string Production { get; init; } = string.Empty;
 
     [JsonPropertyName("panels")]
     public string Panels { get; init; } = "{}";

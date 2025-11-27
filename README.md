@@ -36,7 +36,6 @@ curl -X POST http://localhost:8080/entities \
         "creatorId": 123,
         "companyId": "c0a80101-1111-2222-3333-444455556666",
         "creatorEmail": "owner@example.com",
-        "title": "Product Telemetry - PT",
         "productionName": "PT",
         "panels": "{\"widgets\":[]}",
         "collaborators": "[]",

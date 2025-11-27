@@ -105,7 +105,6 @@ static async Task<Guid> CreateEntityAsync(HttpClient client, JsonSerializerOptio
         creatorId = 999,
         companyId,                                                                                                                                                       
         creatorEmail = "pt@example.com",                                                                                                                                             
-        title = "FD",
         production="FD",                                                                                                                                                                
         panels = "{}",                                                                                                                                                               
         collaborators = "[]",                                                                                                                                                        
