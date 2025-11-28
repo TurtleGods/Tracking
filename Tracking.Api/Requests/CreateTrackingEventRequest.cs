@@ -5,8 +5,6 @@ namespace Tracking.Api.Requests;
 
 public sealed class CreateTrackingEventRequest
 {
-    [Required]
-    public Guid SessionId { get; set; }
 
     [Required]
     public string EventType { get; set; } = string.Empty;
@@ -31,7 +29,7 @@ public sealed class CreateTrackingEventRequest
     public int ViewportHeight { get; set; }
     public string Properties { get; set; } = "{}";
 
-    public TrackingEvent ToTrackingEvent(Guid entityId, Guid sessionId)
+    public TrackingEvent ToTrackingEvent(Guid entityId, Guid sessionId, Guid employeeId, Guid companyId)
     {
         return new TrackingEvent
         {
@@ -45,8 +43,8 @@ public sealed class CreateTrackingEventRequest
             Timestamp = Timestamp ?? DateTime.UtcNow,
             Refer = Refer,
             ExposeTime = ExposeTime,
-            EmployeeId = EmployeeId,
-            CompanyId = CompanyId,
+            EmployeeId = employeeId,
+            CompanyId = companyId,
             DeviceType = DeviceType,
             OsVersion = OsVersion,
             BrowserVersion = BrowserVersion,

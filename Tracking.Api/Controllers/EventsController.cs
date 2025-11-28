@@ -1,4 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography;
+using System.Text;
 using Tracking.Api.Data;
 using Tracking.Api.Models;
 using Tracking.Api.Requests;
@@ -6,7 +9,7 @@ using Tracking.Api.Requests;
 namespace Tracking.Api.Controllers;
 
 [ApiController]
-[Route("entities/{sessionId:guid}/events")]
+[Route("entities")]
 public sealed class EventsController : ControllerBase
 {
     private readonly ITrackingRepository _repository;
@@ -16,7 +19,7 @@ public sealed class EventsController : ControllerBase
         _repository = repository;
     }
 
-    [HttpGet]
+    [HttpGet("{sessionId:guid}/events")]
     public async Task<ActionResult<IEnumerable<TrackingEvent>>> Get(Guid sessionId, [FromQuery] int limit = 50, CancellationToken cancellationToken = default)
     {
         var take = NormalizeLimit(limit);
@@ -24,18 +27,51 @@ public sealed class EventsController : ControllerBase
         return Ok(eventsForEntity);
     }
 
-    [HttpPost]
-    public async Task<ActionResult<TrackingEvent>> Create(Guid sessionId, [FromBody] CreateTrackingEventRequest request, CancellationToken cancellationToken = default)
+    [HttpPost("events")]
+    [HttpPost("{sessionId:guid}/events")]
+    public async Task<ActionResult<TrackingEvent>> Create([FromRoute] Guid? sessionId, [FromBody] CreateTrackingEventRequest request, CancellationToken cancellationToken = default)
     {
-        var session = await _repository.GetEventBySessionIdAsync(sessionId, cancellationToken);
-        if (session is null)
+        var companyIdClaim = ExtractCidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
+        var employeeIdClaim= ExtractEidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
+        if (string.IsNullOrWhiteSpace(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyId))
         {
-            return NotFound();
+            return Unauthorized("Missing or invalid session cookie. Please log in again.");
         }
 
-        var trackingEvent = request.ToTrackingEvent(session.EntityId, sessionId);
+        var requestedSessionId = sessionId ?? Guid.Empty;
+        var existingSession = requestedSessionId != Guid.Empty
+            ? await _repository.GetEventBySessionIdAsync(requestedSessionId, cancellationToken)
+            : null;
+
+        TrackingSession session;
+        if (existingSession is null)
+        {
+            var entity = await GetOrCreateEntityAsync(request.CompanyId, cancellationToken);
+            var startedAt = request.Timestamp ?? DateTime.UtcNow;
+            var newSessionId = requestedSessionId == Guid.Empty ? Guid.NewGuid() : requestedSessionId;
+
+            session = new TrackingSession
+            {
+                SessionId = newSessionId,
+                EntityId = entity.EntityId,
+                EmployeeId = request.EmployeeId,
+                CompanyId = request.CompanyId,
+                StartedAt = startedAt,
+                LastActivityAt = startedAt,
+                EndedAt = null,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _repository.InsertSessionAsync(session, cancellationToken);
+        }
+        else
+        {
+            session = existingSession;
+        }
+
+        var trackingEvent = request.ToTrackingEvent(session.EntityId, session.SessionId, session.EmployeeId, session.CompanyId);
         await _repository.InsertEventAsync(trackingEvent, cancellationToken);
-        return CreatedAtAction(nameof(Get), new { sessionId, id = trackingEvent.Id }, trackingEvent);
+        return CreatedAtAction(nameof(Get), new { sessionId = session.SessionId, id = trackingEvent.Id }, trackingEvent);
     }
 
     private static int NormalizeLimit(int limit) => limit switch
@@ -44,4 +80,69 @@ public sealed class EventsController : ControllerBase
         > 500 => 500,
         _ => limit
     };
+
+    private async Task<MainEntity> GetOrCreateEntityAsync(Guid companyId, CancellationToken cancellationToken)
+    {
+        var existing = await _repository.GetMainEntityByCompanyAsync(companyId, cancellationToken);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var entity = new MainEntity
+        {
+            EntityId = CreateDeterministicEntityId("PT", companyId),
+            CompanyId = companyId,
+            Production = "PT",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _repository.InsertMainEntityAsync(entity, cancellationToken);
+        return entity;
+    }
+
+    private static Guid CreateDeterministicEntityId(string production, Guid companyId)
+    {
+        var key = $"{production}:{companyId}".ToLowerInvariant();
+        using var md5 = MD5.Create();
+        var bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(key));
+        return new Guid(bytes);
+    }
+        private static string? ExtractCidFromCookie(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+            return jwt.Claims.FirstOrDefault(c => c.Type == "cid")?.Value;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+        private static string? ExtractEidFromCookie(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+            return jwt.Claims.FirstOrDefault(c => c.Type == "eid")?.Value;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
