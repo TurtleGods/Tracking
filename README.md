@@ -28,27 +28,22 @@ Start ClickHouse separately (e.g., from compose: `docker-compose up clickhouse`)
 - Reference: `DBSchema.md`
 
 ## Sample Requests
-Create an entity:
+Create a session (auto-creates entities if missing):
 ```bash
-curl -X POST http://localhost:8080/entities \
+curl -X POST http://localhost:8080/sessions \
   -H "Content-Type: application/json" \
+  -H "Cookie: __ModuleSessionCookie=<jwt_with_cid_claim>" \
   -d '{
-        "creatorId": 123,
-        "companyId": "c0a80101-1111-2222-3333-444455556666",
-        "creatorEmail": "owner@example.com",
-        "productionName": "PT",
-        "panels": "{\"widgets\":[]}",
-        "collaborators": "[]",
-        "visibility": "private",
-        "isShared": false
+        "employeeId":"11111111-2222-3333-4444-555555555555",
+        "companyId":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        "startedAt":"2024-01-01T00:00:00Z",
+        "entity":{
+          "panels":"{}",
+          "collaborators":"[]",
+          "visibility":"private",
+          "isShared":false
+        }
       }'
-```
-Requires JWT cookie `__ModuleSessionCookie` with a `cid` claim; the API extracts `cid` from the token, derives deterministic `entity_id` values for each production (`PT`, `PY`, `FD`), and will create any missing entities (reusing existing ones). Missing/invalid cookie returns 401 prompting re-login.
-Create a session:
-```bash
-curl -X POST http://localhost:8080/entities/{entityId}/sessions \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"11111111-2222-3333-4444-555555555555","companyId":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","startedAt":"2024-01-01T00:00:00Z"}'
 ```
 Create an event:
 ```bash

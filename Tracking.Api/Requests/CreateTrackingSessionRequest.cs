@@ -5,11 +5,9 @@ namespace Tracking.Api.Requests;
 
 public sealed class CreateTrackingSessionRequest
 {
+    
     [Required]
-    public Guid EmployeeId { get; set; }
-
-    [Required]
-    public Guid CompanyId { get; set; }
+    public required string Production{get;set;}
 
     public DateTime? StartedAt { get; set; }
     public DateTime? LastActivityAt { get; set; }
@@ -23,8 +21,6 @@ public sealed class CreateTrackingSessionRequest
         {
             SessionId = Guid.NewGuid(),
             EntityId = entityId,
-            EmployeeId = EmployeeId,
-            CompanyId = CompanyId,
             StartedAt = started,
             LastActivityAt = lastActivity,
             EndedAt = EndedAt,

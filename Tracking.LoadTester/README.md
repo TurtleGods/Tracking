@@ -1,6 +1,6 @@
 # Tracking.LoadTester
 
-Lightweight console app that stress-tests the Tracking API against ClickHouse by creating a PT entity, one session, and firing a configurable number of events in parallel.
+Lightweight console app that stress-tests the Tracking API against ClickHouse by creating a session (auto-creating a PT entity if missing) and firing a configurable number of events in parallel.
 
 ## Prerequisites
 - .NET SDK 10.0+
@@ -26,16 +26,15 @@ dotnet run --project Tracking.LoadTester/Tracking.LoadTester.csproj
 Console output shows entity/session IDs, per-event logging, total time, failures, and avg RPS.
 
 ## Environment variables
-- `TARGET_BASE` (default `http://localhost:8080`) ‚Äì API base URL
-- `TOTAL_EVENTS` (default `100000`) ‚Äì number of events to send
-- `CONCURRENCY` (default `64`) ‚Äì parallel worker count
-- `ENTITY_ID` (optional) ‚Äì reuse an existing main entity
-- `SESSION_ID` (optional) ‚Äì reuse an existing session (must match `ENTITY_ID`)
+- `TARGET_BASE` (default `http://localhost:8080`) °V API base URL
+- `TOTAL_EVENTS` (default `100000`) °V number of events to send
+- `CONCURRENCY` (default `64`) °V parallel worker count
+- `ENTITY_ID` (optional) °V reuse an existing main entity (otherwise PT entity is auto-created)
+- `SESSION_ID` (optional) °V reuse an existing session (must match the entity if provided)
 
 ## What it does
-1. Creates an entity production ‚ÄúPT‚Äù unless `ENTITY_ID` is provided.
-2. Creates a session tied to that entity unless `SESSION_ID` is provided.
-3. Sends `TOTAL_EVENTS` POSTs to `POST /entities/{entityId}/events` with realistic payloads (behavior events, page metadata, device/network info).
+1. Creates a session via `POST /sessions` (or `/entities/{entityId}/sessions` if `ENTITY_ID` is provided); the API will ensure deterministic PT/PY/FD entities exist based on the session cookie.
+2. Sends `TOTAL_EVENTS` POSTs to `POST /entities/{sessionId}/events` with realistic payloads (behavior events, page metadata, device/network info).
 
 ## Tuning tips
 - Increase `CONCURRENCY` to find throughput ceiling; expect higher p95/p99 latency and potential 5xx/timeout if you overshoot.

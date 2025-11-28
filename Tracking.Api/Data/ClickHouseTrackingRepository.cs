@@ -33,9 +33,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
     {
         const string sql = """
             SELECT entity_id,
-                   creator_id,
                    company_id,
-                   creator_email,
                    production,
                    panels,
                    collaborators,
@@ -60,9 +58,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             entities.Add(new MainEntity
             {
                 EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
-                CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
                 CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
-                CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
                 Production = reader.GetString(reader.GetOrdinal("production")),
                 Panels = reader.GetString(reader.GetOrdinal("panels")),
                 Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
@@ -81,9 +77,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
     {
         const string sql = """
             SELECT entity_id,
-                   creator_id,
                    company_id,
-                   creator_email,
                    production,
                    panels,
                    collaborators,
@@ -110,9 +104,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         return new MainEntity
         {
             EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
-            CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
             CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
-            CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
             Production = reader.GetString(reader.GetOrdinal("production")),
             Panels = reader.GetString(reader.GetOrdinal("panels")),
             Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
@@ -128,9 +120,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
     {
         const string sql = """
             SELECT entity_id,
-                   creator_id,
                    company_id,
-                   creator_email,
                    production,
                    panels,
                    collaborators,
@@ -158,9 +148,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         return new MainEntity
         {
             EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
-            CreatorId = reader.GetFieldValue<ulong>(reader.GetOrdinal("creator_id")),
             CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
-            CreatorEmail = reader.GetString(reader.GetOrdinal("creator_email")),
             Production = reader.GetString(reader.GetOrdinal("production")),
             Panels = reader.GetString(reader.GetOrdinal("panels")),
             Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
@@ -178,9 +166,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             INSERT INTO main_entities
             (
                 entity_id,
-                creator_id,
                 company_id,
-                creator_email,
                 production,
                 panels,
                 collaborators,
@@ -193,9 +179,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             VALUES
             (
                 @entity_id,
-                @creator_id,
                 @company_id,
-                @creator_email,
                 @production,
                 @panels,
                 @collaborators,
@@ -532,9 +516,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
     private static void AddCommonParametersForEntity(DbCommand command, MainEntity entity)
     {
         AddParameter(command, "entity_id", DbType.Guid, entity.EntityId);
-        AddParameter(command, "creator_id", DbType.UInt64, entity.CreatorId);
         AddParameter(command, "company_id", DbType.Guid, entity.CompanyId);
-        AddParameter(command, "creator_email", DbType.String, entity.CreatorEmail);
         AddParameter(command, "production", DbType.String, entity.Production);
         AddParameter(command, "panels", DbType.String, entity.Panels);
         AddParameter(command, "collaborators", DbType.String, entity.Collaborators);
