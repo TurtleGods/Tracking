@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS tracking.tracking_events
     refer String,
     expose_time Int32,
     employee_id UUID,
-    company_id UInt64,
+    company_id UUID,
     device_type String,
     os_version String,
     browser_version String,

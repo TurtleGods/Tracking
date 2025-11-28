@@ -12,8 +12,9 @@ public interface ITrackingRepository
     Task<MainEntity?> GetMainEntityByIdAsync(Guid entityId, CancellationToken cancellationToken);
     Task InsertMainEntityAsync(MainEntity entity, CancellationToken cancellationToken);
     Task<IEnumerable<TrackingSession>> GetSessionsAsync(Guid entityId, int limit, CancellationToken cancellationToken);
+    Task<TrackingSession?> GetEventBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken);
     Task InsertSessionAsync(TrackingSession session, CancellationToken cancellationToken);
-    Task<IEnumerable<TrackingEvent>> GetEventsAsync(Guid entityId, int limit, CancellationToken cancellationToken);
+    Task<IEnumerable<TrackingEvent>> GetEventsBySessionAsync(Guid sessionId, int limit, CancellationToken cancellationToken);
     Task InsertEventAsync(TrackingEvent trackingEvent, CancellationToken cancellationToken);
     Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken);
     Task DeleteSessionCascadeAsync(Guid sessionId, CancellationToken cancellationToken);
@@ -256,6 +257,47 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         return sessions;
     }
 
+    public async Task<TrackingSession?> GetEventBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT session_id,
+                   entity_id,
+                   employee_id,
+                   company_id,
+                   started_at,
+                   last_activity_at,
+                   ended_at,
+                   created_at
+            FROM tracking_sessions
+            WHERE session_id = @session_id
+            LIMIT 1;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "session_id", DbType.Guid, sessionId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new TrackingSession
+        {
+            SessionId = reader.GetFieldValue<Guid>(reader.GetOrdinal("session_id")),
+            EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
+            EmployeeId = reader.GetFieldValue<Guid>(reader.GetOrdinal("employee_id")),
+            CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
+            StartedAt = reader.GetDateTime(reader.GetOrdinal("started_at")),
+            LastActivityAt = reader.GetDateTime(reader.GetOrdinal("last_activity_at")),
+            EndedAt = reader.IsDBNull(reader.GetOrdinal("ended_at"))
+                ? null
+                : reader.GetDateTime(reader.GetOrdinal("ended_at")),
+            CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at"))
+        };
+    }
+
     public async Task InsertSessionAsync(TrackingSession session, CancellationToken cancellationToken)
     {
         const string sql = """
@@ -297,7 +339,9 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<TrackingEvent>> GetEventsAsync(Guid entityId, int limit, CancellationToken cancellationToken)
+
+
+    public async Task<IEnumerable<TrackingEvent>> GetEventsBySessionAsync(Guid sessionId, int limit, CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT id,
@@ -322,14 +366,14 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                    viewport_height,
                    properties
             FROM tracking_events
-            WHERE entity_id = @entity_id
+            WHERE session_id = @session_id
             ORDER BY timestamp DESC
             LIMIT @limit;
             """;
 
         await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
         await using var command = CreateCommand(connection, sql);
-        AddParameter(command, "entity_id", DbType.Guid, entityId);
+        AddParameter(command, "session_id", DbType.Guid, sessionId);
         AddParameter(command, "limit", DbType.Int32, limit);
 
         var events = new List<TrackingEvent>();
@@ -348,8 +392,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 Timestamp = reader.GetDateTime(reader.GetOrdinal("timestamp")),
                 Refer = reader.GetString(reader.GetOrdinal("refer")),
                 ExposeTime = reader.GetInt32(reader.GetOrdinal("expose_time")),
-                UserId = reader.GetInt64(reader.GetOrdinal("employee_id")),
-                CompanyId = reader.GetInt64(reader.GetOrdinal("company_id")),
+                EmployeeId = reader.GetFieldValue<Guid>(reader.GetOrdinal("employee_id")),
+                CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
                 DeviceType = reader.GetString(reader.GetOrdinal("device_type")),
                 OsVersion = reader.GetString(reader.GetOrdinal("os_version")),
                 BrowserVersion = reader.GetString(reader.GetOrdinal("browser_version")),
@@ -430,8 +474,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         AddParameter(command, "timestamp", DbType.DateTime2, trackingEvent.Timestamp);
         AddParameter(command, "refer", DbType.String, trackingEvent.Refer);
         AddParameter(command, "expose_time", DbType.Int32, trackingEvent.ExposeTime);
-        AddParameter(command, "employee_id", DbType.Int64, trackingEvent.UserId);
-        AddParameter(command, "company_id", DbType.Int64, trackingEvent.CompanyId);
+        AddParameter(command, "employee_id", DbType.Guid, trackingEvent.EmployeeId);
+        AddParameter(command, "company_id", DbType.Guid, trackingEvent.CompanyId);
         AddParameter(command, "device_type", DbType.String, trackingEvent.DeviceType);
         AddParameter(command, "os_version", DbType.String, trackingEvent.OsVersion);
         AddParameter(command, "browser_version", DbType.String, trackingEvent.BrowserVersion);

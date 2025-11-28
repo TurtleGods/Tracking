@@ -6,7 +6,7 @@ using Tracking.Api.Requests;
 namespace Tracking.Api.Controllers;
 
 [ApiController]
-[Route("entities/{entityId:guid}/events")]
+[Route("entities/{sessionId:guid}/events")]
 public sealed class EventsController : ControllerBase
 {
     private readonly ITrackingRepository _repository;
@@ -17,19 +17,25 @@ public sealed class EventsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<TrackingEvent>>> Get(Guid entityId, [FromQuery] int limit = 50, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IEnumerable<TrackingEvent>>> Get(Guid sessionId, [FromQuery] int limit = 50, CancellationToken cancellationToken = default)
     {
         var take = NormalizeLimit(limit);
-        var eventsForEntity = await _repository.GetEventsAsync(entityId, take, cancellationToken);
+        var eventsForEntity = await _repository.GetEventsBySessionAsync(sessionId, take, cancellationToken);
         return Ok(eventsForEntity);
     }
 
     [HttpPost]
-    public async Task<ActionResult<TrackingEvent>> Create(Guid entityId, [FromBody] CreateTrackingEventRequest request, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<TrackingEvent>> Create(Guid sessionId, [FromBody] CreateTrackingEventRequest request, CancellationToken cancellationToken = default)
     {
-        var trackingEvent = request.ToTrackingEvent(entityId);
+        var session = await _repository.GetEventBySessionIdAsync(sessionId, cancellationToken);
+        if (session is null)
+        {
+            return NotFound();
+        }
+
+        var trackingEvent = request.ToTrackingEvent(session.EntityId, sessionId);
         await _repository.InsertEventAsync(trackingEvent, cancellationToken);
-        return CreatedAtAction(nameof(Get), new { entityId, id = trackingEvent.Id }, trackingEvent);
+        return CreatedAtAction(nameof(Get), new { sessionId, id = trackingEvent.Id }, trackingEvent);
     }
 
     private static int NormalizeLimit(int limit) => limit switch

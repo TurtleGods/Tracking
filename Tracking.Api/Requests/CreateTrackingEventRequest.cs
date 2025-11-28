@@ -19,8 +19,8 @@ public sealed class CreateTrackingEventRequest
     public DateTime? Timestamp { get; set; }
     public string Refer { get; set; } = string.Empty;
     public int ExposeTime { get; set; }
-    public long UserId { get; set; }
-    public long CompanyId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid CompanyId { get; set; }
     public string DeviceType { get; set; } = string.Empty;
     public string OsVersion { get; set; } = string.Empty;
     public string BrowserVersion { get; set; } = string.Empty;
@@ -31,13 +31,13 @@ public sealed class CreateTrackingEventRequest
     public int ViewportHeight { get; set; }
     public string Properties { get; set; } = "{}";
 
-    public TrackingEvent ToTrackingEvent(Guid entityId)
+    public TrackingEvent ToTrackingEvent(Guid entityId, Guid sessionId)
     {
         return new TrackingEvent
         {
             Id = Guid.NewGuid(),
             EntityId = entityId,
-            SessionId = SessionId,
+            SessionId = sessionId,
             EventType = EventType,
             EventName = EventName,
             PageName = PageName,
@@ -45,7 +45,7 @@ public sealed class CreateTrackingEventRequest
             Timestamp = Timestamp ?? DateTime.UtcNow,
             Refer = Refer,
             ExposeTime = ExposeTime,
-            UserId = UserId,
+            EmployeeId = EmployeeId,
             CompanyId = CompanyId,
             DeviceType = DeviceType,
             OsVersion = OsVersion,

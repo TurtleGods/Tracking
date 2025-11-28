@@ -9,9 +9,11 @@ from `db/001_clickhouse_init.sql`.
 CREATE TABLE IF NOT EXISTS tracking.main_entities
 (
     entity_id UUID,
+    company_id UUID,
     creator_id UInt64,
     creator_email String,
     panels String,
+    production String,
     collaborators String,
     visibility LowCardinality(String),
     is_shared UInt8,
@@ -28,26 +30,17 @@ TTL toDateTime(created_at) + INTERVAL 365 DAY DELETE;
 ```sql
 CREATE TABLE IF NOT EXISTS tracking.tracking_sessions
 (
-    id UUID,
+    session_id UUID,
     entity_id UUID,
-    user_id UInt64,
-    company_id UInt64,
+    employee_id UUID,
+    company_id UUID,
     started_at DateTime64(3),
     last_activity_at DateTime64(3),
-    ended_at DateTime64(3),
-    total_events UInt32,
-    total_views UInt32,
-    total_clicks UInt32,
-    total_exposes UInt32,
-    total_disappears UInt32,
-    device_type String,
-    device_model String,
-    entry_page String,
-    exit_page String,
+    ended_at Nullable(DateTime64(3)),
     created_at DateTime64(3) DEFAULT now64()
 ) ENGINE = MergeTree
 PARTITION BY toYYYYMM(started_at)
-ORDER BY (entity_id, started_at, id)
+ORDER BY (entity_id, started_at, session_id)
 TTL toDateTime(started_at) + INTERVAL 180 DAY DELETE;
 ```
 
@@ -64,8 +57,8 @@ CREATE TABLE IF NOT EXISTS tracking.tracking_events
     timestamp DateTime64(3),
     refer String,
     expose_time Int32,
-    user_id UInt64,
-    company_id UInt64,
+    employee_id UUID,
+    company_id UUID,
     device_type String,
     os_version String,
     browser_version String,

@@ -34,11 +34,11 @@ public sealed record TrackingEvent
     [JsonPropertyName("expose_time")]
     public int ExposeTime { get; init; }
 
-    [JsonPropertyName("user_id")]
-    public long UserId { get; init; }
+    [JsonPropertyName("employee_id")]
+    public Guid EmployeeId { get; init; }
 
     [JsonPropertyName("company_id")]
-    public long CompanyId { get; init; }
+    public Guid CompanyId { get; init; }
 
     [JsonPropertyName("device_type")]
     public string DeviceType { get; init; } = string.Empty;
