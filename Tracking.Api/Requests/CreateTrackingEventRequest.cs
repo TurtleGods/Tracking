@@ -1,0 +1,61 @@
+using System.ComponentModel.DataAnnotations;
+using Tracking.Api.Models;
+
+namespace Tracking.Api.Requests;
+
+public sealed class CreateTrackingEventRequest
+{
+    [Required]
+    public Guid SessionId { get; set; }
+
+    [Required]
+    public string EventType { get; set; } = string.Empty;
+
+    [Required]
+    public string EventName { get; set; } = string.Empty;
+
+    public string PageName { get; set; } = string.Empty;
+    public string ComponentName { get; set; } = string.Empty;
+    public DateTime? Timestamp { get; set; }
+    public string Refer { get; set; } = string.Empty;
+    public int ExposeTime { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid CompanyId { get; set; }
+    public string DeviceType { get; set; } = string.Empty;
+    public string OsVersion { get; set; } = string.Empty;
+    public string BrowserVersion { get; set; } = string.Empty;
+    public string NetworkType { get; set; } = string.Empty;
+    public string NetworkEffectiveType { get; set; } = string.Empty;
+    public string PageUrl { get; set; } = string.Empty;
+    public string PageTitle { get; set; } = string.Empty;
+    public int ViewportHeight { get; set; }
+    public string Properties { get; set; } = "{}";
+
+    public TrackingEvent ToTrackingEvent(Guid entityId, Guid sessionId)
+    {
+        return new TrackingEvent
+        {
+            Id = Guid.NewGuid(),
+            EntityId = entityId,
+            SessionId = sessionId,
+            EventType = EventType,
+            EventName = EventName,
+            PageName = PageName,
+            ComponentName = ComponentName,
+            Timestamp = Timestamp ?? DateTime.UtcNow,
+            Refer = Refer,
+            ExposeTime = ExposeTime,
+            EmployeeId = EmployeeId,
+            CompanyId = CompanyId,
+            DeviceType = DeviceType,
+            OsVersion = OsVersion,
+            BrowserVersion = BrowserVersion,
+            NetworkType = NetworkType,
+            NetworkEffectiveType = NetworkEffectiveType,
+            PageUrl = PageUrl,
+            PageTitle = PageTitle,
+            ViewportHeight = ViewportHeight,
+            Properties = Properties
+        };
+    }
+}

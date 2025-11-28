@@ -1,0 +1,42 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Tracking.Api/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ClickHouse__ConnectionString=Host=clickhouse;Port=8123;Database=tracking;User=default;Password=password;
+    ports:
+      - "8080:8080"
+    depends_on:
+      - clickhouse
+  loadtester:
+    build:
+      context: .
+      dockerfile: Tracking.LoadTester/Dockerfile
+    profiles: ["loadtest"]
+    environment:
+      - TARGET_BASE=http://api:8080
+      - TOTAL_EVENTS=100000
+      - CONCURRENCY=64
+      - PROGRESS_STEP=1000
+    depends_on:
+      - api
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: tracking
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: password
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+
+volumes:
+  clickhouse_data:
