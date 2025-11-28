@@ -27,28 +27,37 @@ public sealed class SessionsController : ControllerBase
         return Ok(sessions);
     }
 
-
+    /// <summary>
+    /// 1. If sessionId is provided, create session under that entity.
+    /// 2. If sessionId is not provided, extract companyId from cookie, ensure
+    ///   entities for that company, choose primary entity (or first one), create session under that entity.
+    /// 3. If cookie is missing or invalid, return Unauthorized.
+    /// </summary>
+    /// <param name="sessionId"></param>
+    /// <param name="request"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     [HttpPost("/sessions/{sessionId:guid}")]
     public async Task<ActionResult<TrackingSession>> Create([FromRoute] Guid? sessionId, [FromBody] CreateTrackingSessionRequest request, CancellationToken cancellationToken = default)
     {
         var targetEntity = sessionId.HasValue?sessionId:null;
-
+        var companyId = Guid.Empty;
         if (targetEntity is null)
         {
             var companyIdClaim = ExtractCidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
-            var employeeId = ExtractEidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
-            if (string.IsNullOrWhiteSpace(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyId))
+            var employeeIdClaim= ExtractEidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
+            Guid.TryParse(employeeIdClaim, out var employeeId);
+            if (string.IsNullOrWhiteSpace(companyIdClaim) || !Guid.TryParse(companyIdClaim, out companyId))
             {
                 return Unauthorized("Missing or invalid session cookie. Please log in again.");
             }
-            var entity = CreateDeterministicEntityId(request.Production, companyId);
-            var ensured = await EnsureEntitiesAsync(companyId, entity, cancellationToken);
-            targetEntity = ChooseEntity(sessionId, ensured);
+            var entityId = CreateDeterministicEntityId(request.Production, companyId);
+            var ensured = await EnsureEntitiesAsync(companyId, cancellationToken);
+            var session = request.ToTrackingSession(entityId);
+            await _repository.InsertSessionAsync(session, cancellationToken);   
+            return CreatedAtAction(nameof(Get), new { entityId = entityId, id = session.SessionId }, session);
         }
-
-        var session = request.ToTrackingSession(targetEntity.EntityId);
-        await _repository.InsertSessionAsync(session, cancellationToken);
-        return CreatedAtAction(nameof(Get), new { entityId = targetEntity.EntityId, id = session.SessionId }, session);
+        return Ok();
     }
 
     [HttpDelete("{sessionId:guid}")]
@@ -65,31 +74,18 @@ public sealed class SessionsController : ControllerBase
         _ => limit
     };
 
-    private static MainEntity ChooseEntity(Guid? requestedEntityId, IReadOnlyCollection<MainEntity> ensured)
-    {
-        if (requestedEntityId.HasValue)
-        {
-            var matched = ensured.FirstOrDefault(e => e.EntityId == requestedEntityId.Value);
-            if (matched is not null)
-            {
-                return matched;
-            }
-        }
-
-        var primary = ensured.FirstOrDefault(e => string.Equals(e.Production, "PT", StringComparison.OrdinalIgnoreCase));
-        return primary ?? ensured.First();
-    }
-
     private async Task<IReadOnlyCollection<MainEntity>> EnsureEntitiesAsync(
         Guid companyId,
-        CreateMainEntityRequest? request,
         CancellationToken cancellationToken)
     {
         var productions = new[] { "PT", "PY", "FD" };
         var ensured = new List<MainEntity>();
-        var entityRequest = request ?? CreateDefaultEntityRequest(companyId);
-        entityRequest.CompanyId = companyId;
-
+        var entityRequest = new CreateMainEntityRequest(){CompanyId=companyId};
+        var ensureEntity = await _repository.GetMainEntityByCompanyAsync(companyId,cancellationToken);
+        if(ensureEntity is not null)
+        {
+            
+        }
         foreach (var production in productions)
         {
             var ensuredId = CreateDeterministicEntityId(production, companyId);
@@ -105,13 +101,6 @@ public sealed class SessionsController : ControllerBase
                 EntityId = ensuredId,
                 Production = production,
                 CompanyId = companyId,
-                CreatorId = entityRequest.CreatorId,
-                CreatorEmail = entityRequest.CreatorEmail,
-                Panels = entityRequest.Panels,
-                Collaborators = entityRequest.Collaborators,
-                Visibility = entityRequest.Visibility,
-                IsShared = entityRequest.IsShared,
-                SharedToken = entityRequest.SharedToken ?? Guid.NewGuid(),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -123,18 +112,6 @@ public sealed class SessionsController : ControllerBase
 
         return ensured;
     }
-
-    private static CreateMainEntityRequest CreateDefaultEntityRequest(Guid companyId) => new()
-    {
-        CompanyId = companyId,
-        CreatorId = 0,
-        CreatorEmail = "system@tracking.local",
-        Panels = "{}",
-        Collaborators = "[]",
-        Visibility = "private",
-        IsShared = false,
-        SharedToken = null
-    };
 
     private static Guid CreateDeterministicEntityId(string production, Guid cid)
     {

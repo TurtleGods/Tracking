@@ -60,11 +60,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
                 CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
                 Production = reader.GetString(reader.GetOrdinal("production")),
-                Panels = reader.GetString(reader.GetOrdinal("panels")),
-                Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
-                Visibility = reader.GetString(reader.GetOrdinal("visibility")),
-                IsShared = reader.GetByte(reader.GetOrdinal("is_shared")) == 1,
-                SharedToken = reader.GetFieldValue<Guid>(reader.GetOrdinal("shared_token")),
                 CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
                 UpdatedAt = reader.GetDateTime(reader.GetOrdinal("updated_at"))
             });
@@ -79,11 +74,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             SELECT entity_id,
                    company_id,
                    production,
-                   panels,
-                   collaborators,
-                   visibility,
-                   is_shared,
-                   shared_token,
                    created_at,
                    updated_at
             FROM main_entities
@@ -106,11 +96,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
             CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
             Production = reader.GetString(reader.GetOrdinal("production")),
-            Panels = reader.GetString(reader.GetOrdinal("panels")),
-            Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
-            Visibility = reader.GetString(reader.GetOrdinal("visibility")),
-            IsShared = reader.GetByte(reader.GetOrdinal("is_shared")) == 1,
-            SharedToken = reader.GetFieldValue<Guid>(reader.GetOrdinal("shared_token")),
             CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
             UpdatedAt = reader.GetDateTime(reader.GetOrdinal("updated_at"))
         };
@@ -122,11 +107,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             SELECT entity_id,
                    company_id,
                    production,
-                   panels,
-                   collaborators,
-                   visibility,
-                   is_shared,
-                   shared_token,
                    created_at,
                    updated_at
             FROM main_entities
@@ -150,11 +130,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             EntityId = reader.GetFieldValue<Guid>(reader.GetOrdinal("entity_id")),
             CompanyId = reader.GetFieldValue<Guid>(reader.GetOrdinal("company_id")),
             Production = reader.GetString(reader.GetOrdinal("production")),
-            Panels = reader.GetString(reader.GetOrdinal("panels")),
-            Collaborators = reader.GetString(reader.GetOrdinal("collaborators")),
-            Visibility = reader.GetString(reader.GetOrdinal("visibility")),
-            IsShared = reader.GetByte(reader.GetOrdinal("is_shared")) == 1,
-            SharedToken = reader.GetFieldValue<Guid>(reader.GetOrdinal("shared_token")),
             CreatedAt = reader.GetDateTime(reader.GetOrdinal("created_at")),
             UpdatedAt = reader.GetDateTime(reader.GetOrdinal("updated_at"))
         };
@@ -168,11 +143,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 entity_id,
                 company_id,
                 production,
-                panels,
-                collaborators,
-                visibility,
-                is_shared,
-                shared_token,
                 created_at,
                 updated_at
             )
@@ -181,11 +151,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 @entity_id,
                 @company_id,
                 @production,
-                @panels,
-                @collaborators,
-                @visibility,
-                @is_shared,
-                @shared_token,
                 @created_at,
                 @updated_at
             );
@@ -518,11 +483,6 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         AddParameter(command, "entity_id", DbType.Guid, entity.EntityId);
         AddParameter(command, "company_id", DbType.Guid, entity.CompanyId);
         AddParameter(command, "production", DbType.String, entity.Production);
-        AddParameter(command, "panels", DbType.String, entity.Panels);
-        AddParameter(command, "collaborators", DbType.String, entity.Collaborators);
-        AddParameter(command, "visibility", DbType.String, entity.Visibility);
-        AddParameter(command, "is_shared", DbType.Byte, entity.IsShared ? 1 : 0);
-        AddParameter(command, "shared_token", DbType.Guid, entity.SharedToken);
         AddParameter(command, "created_at", DbType.DateTime2, entity.CreatedAt);
         AddParameter(command, "updated_at", DbType.DateTime2, entity.UpdatedAt);
     }

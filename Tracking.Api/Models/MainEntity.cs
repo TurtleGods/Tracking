@@ -14,21 +14,6 @@ public sealed record MainEntity
     [JsonPropertyName("production")]
     public string Production { get; init; } = string.Empty;
 
-    [JsonPropertyName("panels")]
-    public string Panels { get; init; } = "{}";
-
-    [JsonPropertyName("collaborators")]
-    public string Collaborators { get; init; } = "[]";
-
-    [JsonPropertyName("visibility")]
-    public string Visibility { get; init; } = "private";
-
-    [JsonPropertyName("is_shared")]
-    public bool IsShared { get; init; }
-
-    [JsonPropertyName("shared_token")]
-    public Guid SharedToken { get; init; }
-
     [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; init; }
 

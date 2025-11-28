@@ -4,12 +4,7 @@ CREATE TABLE IF NOT EXISTS tracking.main_entities
 (
     entity_id UUID,
     company_id UUID,
-    panels String,
     production String,
-    collaborators String,
-    visibility LowCardinality(String),
-    is_shared UInt8,
-    shared_token UUID,
     created_at DateTime64(3) DEFAULT now64(),
     updated_at DateTime64(3) DEFAULT now64(),
     deleted_at Nullable(DateTime64(3))
@@ -50,11 +45,8 @@ CREATE TABLE IF NOT EXISTS tracking.tracking_events
     device_type String,
     os_version String,
     browser_version String,
-    network_type String,
-    network_effective_type String,
     page_url String,
     page_title String,
-    viewport_height Int32,
     properties String
 ) ENGINE = MergeTree
 PARTITION BY toYYYYMM(timestamp)
