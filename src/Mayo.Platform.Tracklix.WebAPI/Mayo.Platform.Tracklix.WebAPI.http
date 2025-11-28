@@ -1,6 +1,0 @@
-@Mayo.Platform.Tracklix.WebAPI_HostAddress = http://localhost:5227
-
-GET {{Mayo.Platform.Tracklix.WebAPI_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
