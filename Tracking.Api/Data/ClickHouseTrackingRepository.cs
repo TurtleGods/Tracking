@@ -35,13 +35,9 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             SELECT entity_id,
                    company_id,
                    production,
-                   panels,
-                   collaborators,
-                   visibility,
-                   is_shared,
-                   shared_token,
                    created_at,
-                   updated_at
+                   updated_at,
+                   deleted_at
             FROM main_entities
             ORDER BY created_at DESC
             LIMIT @limit;
