@@ -33,11 +33,10 @@ public sealed class EventsController : ControllerBase
     {
         var companyIdClaim = ExtractCidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
         var employeeIdClaim= ExtractEidFromCookie(Request.Cookies["__ModuleSessionCookie"]);
-        if (string.IsNullOrWhiteSpace(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyId))
+        if (string.IsNullOrWhiteSpace(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyId)||string.IsNullOrEmpty(employeeIdClaim)||!Guid.TryParse(employeeIdClaim, out var employeeId))
         {
             return Unauthorized("Missing or invalid session cookie. Please log in again.");
         }
-
         var requestedSessionId = sessionId ?? Guid.Empty;
         var existingSession = requestedSessionId != Guid.Empty
             ? await _repository.GetEventBySessionIdAsync(requestedSessionId, cancellationToken)
@@ -46,7 +45,7 @@ public sealed class EventsController : ControllerBase
         TrackingSession session;
         if (existingSession is null)
         {
-            var entity = await GetOrCreateEntityAsync(request.CompanyId, cancellationToken);
+            var entity = await GetOrCreateEntityAsync(companyId, cancellationToken);
             var startedAt = request.Timestamp ?? DateTime.UtcNow;
             var newSessionId = requestedSessionId == Guid.Empty ? Guid.NewGuid() : requestedSessionId;
 
@@ -54,8 +53,8 @@ public sealed class EventsController : ControllerBase
             {
                 SessionId = newSessionId,
                 EntityId = entity.EntityId,
-                EmployeeId = request.EmployeeId,
-                CompanyId = request.CompanyId,
+                EmployeeId = employeeId,
+                CompanyId = companyId,
                 StartedAt = startedAt,
                 LastActivityAt = startedAt,
                 EndedAt = null,
