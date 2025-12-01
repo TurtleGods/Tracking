@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text;
@@ -13,10 +14,13 @@ namespace Tracking.Api.Controllers;
 public sealed class EventsController : ControllerBase
 {
     private readonly ITrackingRepository _repository;
+    private readonly ProductionOptions _productionOptions;
+    private static readonly string[] DefaultProductionCodes = new[] { "PT", "PY", "FD" };
 
-    public EventsController(ITrackingRepository repository)
+    public EventsController(ITrackingRepository repository, IOptions<ProductionOptions> productionOptions)
     {
         _repository = repository;
+        _productionOptions = productionOptions.Value;
     }
 
     [HttpGet("{sessionId:guid}/events")]
@@ -102,7 +106,7 @@ public sealed class EventsController : ControllerBase
         {
             return existing;
         }
-        var productions = new string[]  { "PT", "PY", "FD" };
+        var productions = _productionOptions.Codes is { Length: > 0 } ? _productionOptions.Codes : DefaultProductionCodes;
         foreach (var prod in productions)
         {
             var _entity = new MainEntity
