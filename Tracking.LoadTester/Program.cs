@@ -1,9 +1,12 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
-using System.Security.Cryptography;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
 
 var baseUrl = Environment.GetEnvironmentVariable("TARGET_BASE") ?? "http://localhost:8080";
 var total = int.TryParse(Environment.GetEnvironmentVariable("TOTAL_EVENTS") ?? "10000", out var t) ? t : 100000;
@@ -18,8 +21,7 @@ var progressLock = new object();
 
 var jsonOpts = new JsonSerializerOptions(JsonSerializerDefaults.Web); // camelCase for requests
 using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-client.DefaultRequestHeaders.Add("Cookie", $"__ModuleSessionCookie=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjE2MTBjMTQ1ODdjMGUzY2U0YTk1N2IyMzlhODM3MzIwIn0.eyJpc3MiOiJodHRwczovL3VhdC1hc2lhYXV0aC5tYXlvaHIuY29tL3N0cyIsImlhdCI6MTc2NDU1MzYzNCwiYXVkIjoiNDNmNWJjZGEtZjM0YS00YzA1LTk3ZGMtZTkxZWQxNTI3MzYzIiwibm9uY2UiOiJPVEF6WWprNE5EY3RabVJrT0MwMFl6STFMVGd3TmpRdE16aGtOMll3TURkalpqSXpRRzFoZVc4M056Y3RZVFF6TWpRMVFERTNOalExTlRNMk16UT0iLCJleHAiOjE3NjUxNTg0MzMsIm5iZiI6MTc2NDU1MzYzMywianRpIjoiY2UyOGZlMTRkYWEzNDQ2OTlkMTFjYzdmYmQ3ZWMxZmIiLCJzdWIiOiIwNzcxOTllNWIyMTg0YmM1YjJmMWNjZTBjNDEwYmUyNjgzNTFiOWViYWVlMjQ4MGRiNzAxMzg3OTA4NTkxNjhiIiwiYW1yIjoicHdkIiwiaXBhZGRyIjoiMTAuNDAuMTIuNSIsIm9pZCI6ImNkMzg2YzE2LTE1MmEtNGZjYi1iN2FlLThmMTNhZGM3MWZkNCIsInVpZCI6ImNkMzg2YzE2LTE1MmEtNGZjYi1iN2FlLThmMTNhZGM3MWZkNCIsImlkcCI6Im1heW8gSFJNIiwiZWlkIjoiMzM3NTllYmUtYzk4ZC00MzYxLWEwYTItZTZmMzE0N2U5Y2Y4IiwiY2lkIjoiZGMzNGFmZjYtMmYwYy00OGUwLTk1MTMtZDYyNTE1Yjk2MjViIiwidWJtIjoiTm9uZSIsInJ0IjowLCJzZXAiOjEsInpvbmVpbmZvIjoiKzA4OjAwIiwiaXNGaWRvMlJlZ2lzdGVyZWQiOiIifQ.cx1uqaYJBoqJkcOCQlOTU9YutV8MzwEjP9p6pJYD8t2LFS0FEO_Zr63q1WVrfsFLMI3X05xwVHKHxzAqdW3u1lnjQHb5owqbrlWj2MEcACNONStQNJytuyU-9GLBA4WKgSLskhiOLqRqH-_Mx0axEiViLhGLcP4MmEVA-EPgC6AFnQfgJmIwiAT0IV0NP8VnGG31hd_K00MPhgXNmAGYacorc3oMHIBiM2DIugvmn00rMikD2O_TcGMlAue1u9lXigNIEQFI-yUeDUQazgJFJO72JEaCeG4kgbsCMcrpQkXMzT53G43617VLxWkcM9RxsHc1Y9NCS3Ae8LL3zIqAGA"); // API extracts cid/eid from this cookie
-
+client.DefaultRequestHeaders.Add("Cookie", $"__ModuleSessionCookie={CreateFakeJwt(companyId, employeeId)}");
 Console.WriteLine($"Base={baseUrl} total={total} concurrency={concurrency}");
 
 var sessionId = Guid.TryParse(sessionIdEnv, out var parsedSession) ? parsedSession : Guid.Empty;
@@ -162,23 +164,27 @@ static async Task<TrackingEventResponse> SendEventAsync(HttpClient client, JsonS
     return bodyFinal ?? throw new InvalidOperationException("Missing event payload");
 }
 
-static string CreateFakeJwtWithCid(Guid companyId, Guid employeeId, string secretKey)
+static string CreateFakeJwt(Guid companyId, Guid employeeId)
 {
-    static string B64Url(ReadOnlySpan<byte> bytes) => Convert.ToBase64String(bytes)
-        .TrimEnd('=')
-        .Replace('+', '-')
-        .Replace('/', '_');
+    var claims = new[]
+    {
+        new Claim("eid", employeeId.ToString()),
+        new Claim("cid", companyId.ToString())
+    };
 
-    static string B64UrlJson(string json) => B64Url(System.Text.Encoding.UTF8.GetBytes(json));
+    var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes("Harvey secret for load testing and development"));
 
-    var header = B64UrlJson("""{""alg"":""HS256"",""typ"":""JWT""}""");
-    var payload = B64UrlJson($"{{\"cid\":\"{companyId}\",\"eid\":\"{employeeId}\"}}");
+    var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-    var signingInput = $"{header}.{payload}";
-    using var hmac = new HMACSHA256(System.Text.Encoding.UTF8.GetBytes(secretKey));
-    var signature = B64Url(hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(signingInput)));
+    var token = new JwtSecurityToken(
+        issuer: "Tester",
+        audience:"Mayo",
+        claims: claims,
+        expires: DateTime.UtcNow.AddMinutes(60),
+        signingCredentials: creds
+    );
 
-    return $"{signingInput}.{signature}"; // signed token satisfies JwtSecurityTokenHandler
+    return new JwtSecurityTokenHandler().WriteToken(token);
 }
 
 public sealed class TrackingEventRequest
