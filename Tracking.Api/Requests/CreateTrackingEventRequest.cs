@@ -8,10 +8,10 @@ public sealed class CreateTrackingEventRequest
 
     [Required]
     public string EventType { get; set; } = string.Empty;
-
     [Required]
     public string EventName { get; set; } = string.Empty;
-
+    [Required]
+    public required string Production{get;set;}
     public string PageName { get; set; } = string.Empty;
     public string ComponentName { get; set; } = string.Empty;
     public DateTime? Timestamp { get; set; }

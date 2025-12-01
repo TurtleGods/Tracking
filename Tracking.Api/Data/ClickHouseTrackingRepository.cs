@@ -8,7 +8,7 @@ namespace Tracking.Api.Data;
 public interface ITrackingRepository
 {
     Task<IEnumerable<MainEntity>> GetMainEntitiesAsync(int limit, CancellationToken cancellationToken);
-    Task<MainEntity?> GetMainEntityByCompanyAsync(Guid companyId, CancellationToken cancellationToken);
+    Task<MainEntity?> GetMainEntityByCompanyAndProductionAsync(Guid companyId, string production, CancellationToken cancellationToken);
     Task<MainEntity?> GetMainEntityByIdAsync(Guid entityId, CancellationToken cancellationToken);
     Task InsertMainEntityAsync(MainEntity entity, CancellationToken cancellationToken);
     Task<IEnumerable<TrackingSession>> GetSessionsAsync(Guid entityId, int limit, CancellationToken cancellationToken);
@@ -97,7 +97,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         };
     }
 
-    public async Task<MainEntity?> GetMainEntityByCompanyAsync(Guid companyId, CancellationToken cancellationToken)
+    public async Task<MainEntity?> GetMainEntityByCompanyAndProductionAsync(Guid companyId,string production, CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT entity_id,
@@ -106,7 +106,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                    created_at,
                    updated_at
             FROM main_entities
-            WHERE company_id = @company_id
+            WHERE company_id = @company_id AND production = @production
             ORDER BY created_at DESC
             LIMIT 1;
             """;
@@ -114,6 +114,7 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
         await using var command = CreateCommand(connection, sql);
         AddParameter(command, "company_id", DbType.Guid, companyId);
+        AddParameter(command, "production", DbType.String, production);
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))

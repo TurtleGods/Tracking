@@ -27,6 +27,14 @@ public sealed class EventsController : ControllerBase
         return Ok(eventsForEntity);
     }
 
+
+    /// <summary>
+    /// Creates a tracking event, optionally creating a new session if one does not exist.
+    /// </summary>
+    /// <param name="sessionId"></param>
+    /// <param name="request"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
     [HttpPost("events")]
     [HttpPost("{sessionId:guid}/events")]
     public async Task<ActionResult<TrackingEvent>> Create([FromRoute] Guid? sessionId, [FromBody] CreateTrackingEventRequest request, CancellationToken cancellationToken = default)
@@ -41,11 +49,10 @@ public sealed class EventsController : ControllerBase
         var existingSession = requestedSessionId != Guid.Empty
             ? await _repository.GetEventBySessionIdAsync(requestedSessionId, cancellationToken)
             : null;
-
         TrackingSession session;
         if (existingSession is null)
         {
-            var entity = await GetOrCreateEntityAsync(companyId, cancellationToken);
+            var entity = await GetOrCreateEntityAsync(companyId, request.Production, cancellationToken);
             var startedAt = request.Timestamp ?? DateTime.UtcNow;
             var newSessionId = requestedSessionId == Guid.Empty ? Guid.NewGuid() : requestedSessionId;
 
@@ -80,25 +87,38 @@ public sealed class EventsController : ControllerBase
         _ => limit
     };
 
-    private async Task<MainEntity> GetOrCreateEntityAsync(Guid companyId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Gets or creates the main entity for the given company and production.
+    /// If not found, creates entities for all productions.
+    /// </summary>
+    /// <param name="companyId"></param>
+    /// <param name="production"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    private async Task<MainEntity> GetOrCreateEntityAsync(Guid companyId, string production, CancellationToken cancellationToken)
     {
-        var existing = await _repository.GetMainEntityByCompanyAsync(companyId, cancellationToken);
+        var existing = await _repository.GetMainEntityByCompanyAndProductionAsync(companyId, production, cancellationToken);
         if (existing is not null)
         {
             return existing;
         }
-
-        var entity = new MainEntity
+        var productions = new string[]  { "PT", "PY", "FD" };
+        foreach (var prod in productions)
         {
-            EntityId = CreateDeterministicEntityId("PT", companyId),
-            CompanyId = companyId,
-            Production = "PT",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+            var _entity = new MainEntity
+            {
+                EntityId = CreateDeterministicEntityId(prod, companyId),
+                CompanyId = companyId,
+                Production = prod,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
 
-        await _repository.InsertMainEntityAsync(entity, cancellationToken);
-        return entity;
+            await _repository.InsertMainEntityAsync(_entity, cancellationToken);
+        }
+        var entity = await _repository.GetMainEntityByCompanyAndProductionAsync(companyId, production, cancellationToken);
+
+        return entity!;
     }
 
     private static Guid CreateDeterministicEntityId(string production, Guid companyId)
