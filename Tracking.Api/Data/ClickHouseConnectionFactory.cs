@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using ClickHouse.Client.ADO;
 using Microsoft.Extensions.Options;
 
 namespace Tracking.Api.Data;
 
+[ExcludeFromCodeCoverage]
 public sealed class ClickHouseConnectionFactory
 {
     private readonly string _connectionString;

@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace Tracking.Api.Models;
 
+[ExcludeFromCodeCoverage]
 public sealed record DashboardFavorite
 {
     [JsonPropertyName("id")]

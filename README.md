@@ -55,6 +55,8 @@ Health check: `curl http://localhost:8080/health`
 
 ## Testing / Validation
 - Build: `dotnet build Tracking.sln`
+- Unit tests: `dotnet test Tracking.sln` (xUnit)
+- Coverage: `dotnet test Tracking.sln --collect:"XPlat Code Coverage"` (results under `Tracking.Api.Tests/TestResults/.../coverage.cobertura.xml`)
 - Manual API checks via Swagger or the `Tracking.Api/Tracking.Api.http` file.
 - ClickHouse validation:
 ```bash

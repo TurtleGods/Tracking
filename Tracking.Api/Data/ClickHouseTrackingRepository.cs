@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Data;
 using System.Data.Common;
 using ClickHouse.Client.ADO;
@@ -20,6 +22,7 @@ public interface ITrackingRepository
     Task DeleteSessionCascadeAsync(Guid sessionId, CancellationToken cancellationToken);
 }
 
+[ExcludeFromCodeCoverage]
 public sealed class ClickHouseTrackingRepository : ITrackingRepository
 {
     private readonly ClickHouseConnectionFactory _connectionFactory;

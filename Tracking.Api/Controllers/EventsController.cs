@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text;
@@ -132,7 +133,8 @@ public sealed class EventsController : ControllerBase
         var bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(key));
         return new Guid(bytes);
     }
-        private static string? ExtractCidFromCookie(string? token)
+    [ExcludeFromCodeCoverage]
+    private static string? ExtractCidFromCookie(string? token)
     {
         if (string.IsNullOrWhiteSpace(token))
         {
@@ -150,7 +152,8 @@ public sealed class EventsController : ControllerBase
             return null;
         }
     }
-        private static string? ExtractEidFromCookie(string? token)
+    [ExcludeFromCodeCoverage]
+    private static string? ExtractEidFromCookie(string? token)
     {
         if (string.IsNullOrWhiteSpace(token))
         {

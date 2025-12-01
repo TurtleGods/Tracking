@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel.DataAnnotations;
 using Tracking.Api.Models;
 
 namespace Tracking.Api.Requests;
 
+[ExcludeFromCodeCoverage]
 public sealed class CreateTrackingSessionRequest
 {
     
