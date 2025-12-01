@@ -26,7 +26,6 @@ public sealed class CreateTrackingEventRequest
     public string NetworkEffectiveType { get; set; } = string.Empty;
     public string PageUrl { get; set; } = string.Empty;
     public string PageTitle { get; set; } = string.Empty;
-    public int ViewportHeight { get; set; }
     public string Properties { get; set; } = "{}";
 
     public TrackingEvent ToTrackingEvent(Guid entityId, Guid sessionId, Guid employeeId, Guid companyId)
@@ -48,11 +47,8 @@ public sealed class CreateTrackingEventRequest
             DeviceType = DeviceType,
             OsVersion = OsVersion,
             BrowserVersion = BrowserVersion,
-            NetworkType = NetworkType,
-            NetworkEffectiveType = NetworkEffectiveType,
             PageUrl = PageUrl,
             PageTitle = PageTitle,
-            ViewportHeight = ViewportHeight,
             Properties = Properties
         };
     }

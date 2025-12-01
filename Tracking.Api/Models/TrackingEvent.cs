@@ -49,20 +49,11 @@ public sealed record TrackingEvent
     [JsonPropertyName("browser_version")]
     public string BrowserVersion { get; init; } = string.Empty;
 
-    [JsonPropertyName("network_type")]
-    public string NetworkType { get; init; } = string.Empty;
-
-    [JsonPropertyName("network_effective_type")]
-    public string NetworkEffectiveType { get; init; } = string.Empty;
-
     [JsonPropertyName("page_url")]
     public string PageUrl { get; init; } = string.Empty;
 
     [JsonPropertyName("page_title")]
     public string PageTitle { get; init; } = string.Empty;
-
-    [JsonPropertyName("viewport_height")]
-    public int ViewportHeight { get; init; }
 
     [JsonPropertyName("properties")]
     public string Properties { get; init; } = "{}";

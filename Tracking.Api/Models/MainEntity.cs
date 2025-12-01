@@ -7,7 +7,6 @@ public sealed record MainEntity
     [JsonPropertyName("entity_id")]
     public Guid EntityId { get; init; }
 
-
     [JsonPropertyName("company_id")]
     public Guid CompanyId { get; init; }
 

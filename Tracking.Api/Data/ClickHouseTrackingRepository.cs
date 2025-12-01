@@ -304,11 +304,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                    device_type,
                    os_version,
                    browser_version,
-                   network_type,
-                   network_effective_type,
                    page_url,
                    page_title,
-                   viewport_height,
                    properties
             FROM tracking_events
             WHERE session_id = @session_id
@@ -342,11 +339,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 DeviceType = reader.GetString(reader.GetOrdinal("device_type")),
                 OsVersion = reader.GetString(reader.GetOrdinal("os_version")),
                 BrowserVersion = reader.GetString(reader.GetOrdinal("browser_version")),
-                NetworkType = reader.GetString(reader.GetOrdinal("network_type")),
-                NetworkEffectiveType = reader.GetString(reader.GetOrdinal("network_effective_type")),
                 PageUrl = reader.GetString(reader.GetOrdinal("page_url")),
                 PageTitle = reader.GetString(reader.GetOrdinal("page_title")),
-                ViewportHeight = reader.GetInt32(reader.GetOrdinal("viewport_height")),
                 Properties = reader.GetString(reader.GetOrdinal("properties"))
             });
         }
@@ -374,11 +368,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 device_type,
                 os_version,
                 browser_version,
-                network_type,
-                network_effective_type,
                 page_url,
                 page_title,
-                viewport_height,
                 properties
             )
             VALUES
@@ -398,11 +389,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
                 @device_type,
                 @os_version,
                 @browser_version,
-                @network_type,
-                @network_effective_type,
                 @page_url,
                 @page_title,
-                @viewport_height,
                 @properties
             );
             """;
@@ -424,11 +412,8 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         AddParameter(command, "device_type", DbType.String, trackingEvent.DeviceType);
         AddParameter(command, "os_version", DbType.String, trackingEvent.OsVersion);
         AddParameter(command, "browser_version", DbType.String, trackingEvent.BrowserVersion);
-        AddParameter(command, "network_type", DbType.String, trackingEvent.NetworkType);
-        AddParameter(command, "network_effective_type", DbType.String, trackingEvent.NetworkEffectiveType);
         AddParameter(command, "page_url", DbType.String, trackingEvent.PageUrl);
         AddParameter(command, "page_title", DbType.String, trackingEvent.PageTitle);
-        AddParameter(command, "viewport_height", DbType.Int32, trackingEvent.ViewportHeight);
         AddParameter(command, "properties", DbType.String, trackingEvent.Properties);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
