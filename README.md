@@ -56,7 +56,8 @@ Health check: `curl http://localhost:8080/health`
 ## Testing / Validation
 - Build: `dotnet build Tracking.sln`
 - Unit tests: `dotnet test Tracking.sln` (xUnit)
-- Coverage: `dotnet test Tracking.sln --collect:"XPlat Code Coverage"` (results under `Tracking.Api.Tests/TestResults/.../coverage.cobertura.xml`)
+- Coverage: `dotnet test Tracking.sln --settings coverlet.runsettings --collect:"XPlat Code Coverage"` (Cobertura XML lands under `Tracking.Api.Tests/TestResults/.../coverage.cobertura.xml`)
+- Coverage HTML (requires reportgenerator): `dotnet tool install -g dotnet-reportgenerator-globaltool` then `reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:HtmlSummary`
 - Manual API checks via Swagger or the `Tracking.Api/Tracking.Api.http` file.
 - ClickHouse validation:
 ```bash
