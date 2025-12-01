@@ -20,11 +20,19 @@ public sealed class TrackingEventQueue : ITrackingEventQueue
 {
     private readonly Channel<TrackingEventCommand> _channel;
     public ChannelReader<TrackingEventCommand> Reader => _channel.Reader;
+    public int Capacity { get; }
+    public long Enqueued => Interlocked.Read(ref _enqueued);
+    public long Dropped => Interlocked.Read(ref _dropped);
+    public int CurrentDepth => _channel.Reader.Count;
+
+    private long _enqueued;
+    private long _dropped;
 
     public TrackingEventQueue()
     {
         // Bounded queue to prevent unbounded memory growth under bursty load.
-        _channel = Channel.CreateBounded<TrackingEventCommand>(new BoundedChannelOptions(10_000)
+        Capacity = 10_000;
+        _channel = Channel.CreateBounded<TrackingEventCommand>(new BoundedChannelOptions(Capacity)
         {
             SingleReader = false,
             SingleWriter = false,
@@ -35,6 +43,14 @@ public sealed class TrackingEventQueue : ITrackingEventQueue
     public Task<bool> EnqueueAsync(TrackingEventCommand command, CancellationToken cancellationToken)
     {
         var accepted = _channel.Writer.TryWrite(command);
+        if (accepted)
+        {
+            Interlocked.Increment(ref _enqueued);
+        }
+        else
+        {
+            Interlocked.Increment(ref _dropped);
+        }
         return Task.FromResult(accepted);
     }
 }
@@ -59,6 +75,11 @@ public sealed class TrackingEventBackgroundService : BackgroundService
         _logger = logger;
     }
 
+    public long Processed => Interlocked.Read(ref _processed);
+    public long Failed => Interlocked.Read(ref _failed);
+    private long _processed;
+    private long _failed;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await foreach (var command in _queue.Reader.ReadAllAsync(stoppingToken))
@@ -66,9 +87,11 @@ public sealed class TrackingEventBackgroundService : BackgroundService
             try
             {
                 await ProcessAsync(command, stoppingToken);
+                Interlocked.Increment(ref _processed);
             }
             catch (Exception ex)
             {
+                Interlocked.Increment(ref _failed);
                 _logger.LogError(ex, "Failed to process tracking event for company {CompanyId}", command.CompanyId);
             }
         }

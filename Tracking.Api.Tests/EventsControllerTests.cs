@@ -159,7 +159,7 @@ public sealed class EventsControllerTests
 
     private static EventsController BuildController(ITrackingRepository repository, ITrackingEventQueue queue, bool includeCookie, bool invalidCookie = false)
     {
-        var controller = new EventsController(repository, queue);
+        var controller = new EventsController(repository, queue, new TrackingEventQueue());
         var httpContext = new DefaultHttpContext();
         if (includeCookie)
         {

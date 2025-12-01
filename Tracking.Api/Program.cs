@@ -12,7 +12,8 @@ builder.Services.AddScoped<ITrackingRepository, ClickHouseTrackingRepository>();
 builder.Services.Configure<ProductionOptions>(builder.Configuration.GetSection("Productions"));
 builder.Services.AddSingleton<TrackingEventQueue>();
 builder.Services.AddSingleton<ITrackingEventQueue>(sp => sp.GetRequiredService<TrackingEventQueue>());
-builder.Services.AddHostedService<TrackingEventBackgroundService>();
+builder.Services.AddSingleton<TrackingEventBackgroundService>();
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TrackingEventBackgroundService>());
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

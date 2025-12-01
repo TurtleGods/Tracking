@@ -14,11 +14,13 @@ public sealed class EventsController : ControllerBase
 {
     private readonly ITrackingRepository _repository;
     private readonly ITrackingEventQueue _eventQueue;
+    private readonly TrackingEventQueue _queueImpl;
 
-    public EventsController(ITrackingRepository repository, ITrackingEventQueue eventQueue)
+    public EventsController(ITrackingRepository repository, ITrackingEventQueue eventQueue, TrackingEventQueue queueImpl)
     {
         _repository = repository;
         _eventQueue = eventQueue;
+        _queueImpl = queueImpl;
     }
 
     [HttpGet("{sessionId:guid}/events")]
@@ -27,6 +29,21 @@ public sealed class EventsController : ControllerBase
         var take = NormalizeLimit(limit);
         var eventsForEntity = await _repository.GetEventsBySessionAsync(sessionId, take, cancellationToken);
         return Ok(eventsForEntity);
+    }
+
+    [HttpGet("events/queue-status")]
+    public ActionResult GetQueueStatus()
+    {
+        var backgroundService = HttpContext.RequestServices.GetRequiredService<TrackingEventBackgroundService>();
+        return Ok(new
+        {
+            capacity = _queueImpl.Capacity,
+            current_depth = _queueImpl.CurrentDepth,
+            enqueued = _queueImpl.Enqueued,
+            dropped = _queueImpl.Dropped,
+            processed = backgroundService.Processed,
+            failed = backgroundService.Failed
+        });
     }
 
 
