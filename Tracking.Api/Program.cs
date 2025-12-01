@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
 using Tracking.Api.Data;
 using Tracking.Api.Models;
+using Tracking.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,9 @@ builder.Services.Configure<ClickHouseOptions>(builder.Configuration.GetSection("
 builder.Services.AddSingleton<ClickHouseConnectionFactory>();
 builder.Services.AddScoped<ITrackingRepository, ClickHouseTrackingRepository>();
 builder.Services.Configure<ProductionOptions>(builder.Configuration.GetSection("Productions"));
+builder.Services.AddSingleton<TrackingEventQueue>();
+builder.Services.AddSingleton<ITrackingEventQueue>(sp => sp.GetRequiredService<TrackingEventQueue>());
+builder.Services.AddHostedService<TrackingEventBackgroundService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

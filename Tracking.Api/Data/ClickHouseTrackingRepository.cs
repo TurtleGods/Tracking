@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.CodeAnalysis;
 using System.Data;
 using System.Data.Common;
 using ClickHouse.Client.ADO;

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <ExcludeByFile>
+            **/Tracking.Api/Data/*
+            ;**/Program.cs
+            ;**/Tracking.Api/Models/Dashboard*
+            ;**/Tracking.Api/Requests/CreateMainEntityRequest.cs
+            ;**/Tracking.Api/Requests/CreateTrackingSessionRequest.cs
+            ;**/Tracking.Api/Requests/CreateTrackingEventRequest.cs
+          </ExcludeByFile>
+          <Exclude>
+            [Tracking.Api]Program
+          </Exclude>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

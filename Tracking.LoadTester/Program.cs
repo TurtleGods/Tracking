@@ -10,7 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 
 var baseUrl = Environment.GetEnvironmentVariable("TARGET_BASE") ?? "http://localhost:8080";
 var total = int.TryParse(Environment.GetEnvironmentVariable("TOTAL_EVENTS") ?? "10000", out var t) ? t : 100000;
-var concurrency = int.TryParse(Environment.GetEnvironmentVariable("CONCURRENCY") ?? "64", out var c) ? c : 64;
+var concurrency = int.TryParse(Environment.GetEnvironmentVariable("CONCURRENCY") ?? "500", out var c) ? c : 64;
 var progress = int.TryParse(Environment.GetEnvironmentVariable("PROGRESS_STEP") ?? "1000", out var p) && p > 0 ? p : 1000;
 var sessionIdEnv = Environment.GetEnvironmentVariable("SESSION_ID");
 
@@ -24,50 +24,13 @@ using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
 client.DefaultRequestHeaders.Add("Cookie", $"__ModuleSessionCookie={CreateFakeJwt(companyId, employeeId)}");
 Console.WriteLine($"Base={baseUrl} total={total} concurrency={concurrency}");
 
-var sessionId = Guid.TryParse(sessionIdEnv, out var parsedSession) ? parsedSession : Guid.Empty;
-var entityId = Guid.Empty;
-var handshakeSent = 0;
-
-if (sessionId == Guid.Empty)
-{
-    var handshake = new TrackingEventRequest
-    {
-        SessionId = Guid.Empty, // let API create session (fallback route will set a guid)
-        EventType = "behavior",
-        EventName = "pt_event_handshake",
-        PageName = "handshake",
-        ComponentName = "init",
-        Timestamp = DateTime.UtcNow,
-        Refer = "https://app.local/landing",
-        ExposeTime = 0,
-        EmployeeId = employeeId,
-        CompanyId = companyId,
-        DeviceType = "web",
-        OsVersion = "macOS 15",
-        BrowserVersion = "Chrome 130",
-        NetworkType = "wifi",
-        NetworkEffectiveType = "4g",
-        PageUrl = "https://app.local/handshake",
-        PageTitle = "Handshake",
-        ViewportHeight = 900,
-        Properties = """{"type":"handshake"}"""
-    };
-
-    var handshakeResponse = await SendEventAsync(client, jsonOpts, sessionId, handshake);
-    sessionId = handshakeResponse.SessionId;
-    entityId = handshakeResponse.EntityId;
-    handshakeSent = 1;
-    Console.WriteLine($"Handshake created session={sessionId} entity={entityId} companyId={companyId}");
-}
-else
-{
-    Console.WriteLine($"Using provided session={sessionId} companyId={companyId}");
-}
+var sessionId = Guid.TryParse(sessionIdEnv, out var parsedSession) ? parsedSession : Guid.NewGuid();
+Console.WriteLine($"Using session={sessionId} companyId={companyId}");
 
 var channel = Channel.CreateBounded<int>(concurrency * 4);
 var sw = Stopwatch.StartNew();
 long failures = 0;
-long sent = handshakeSent;
+long sent = 0;
 
 var workers = Enumerable.Range(0, concurrency).Select(async _ =>
 {
@@ -93,13 +56,14 @@ var workers = Enumerable.Range(0, concurrency).Select(async _ =>
             PageUrl = "https://app.local/dashboard",
             PageTitle = "Dashboard",
             ViewportHeight = 900,
-            Properties = """{""variant"":""A"",""cta"":""signup""}"""
+            Properties = """{""variant"":""A"",""cta"":""signup""}""",
+            Production = "PT"
         };
 
         try
         {
-            var response = await SendEventAsync(client, jsonOpts, sessionId, payload);
-            if (response.SessionId == Guid.Empty) Interlocked.Increment(ref failures);
+            var ok = await SendEventAsync(client, jsonOpts, sessionId, payload);
+            if (!ok) Interlocked.Increment(ref failures);
         }
         catch
         {
@@ -123,7 +87,7 @@ var workers = Enumerable.Range(0, concurrency).Select(async _ =>
 
 _ = Task.Run(async () =>
 {
-    for (var i = handshakeSent; i < total; i++)
+    for (var i = 0; i < total; i++)
     {
         await channel.Writer.WriteAsync(i);
     }
@@ -137,31 +101,11 @@ sw.Stop();
 var rps = total / sw.Elapsed.TotalSeconds;
 Console.WriteLine($"Done in {sw.Elapsed.TotalSeconds:F2}s | sent={total} | failures={failures} | avg rps={rps:F1}");
 
-static async Task<TrackingEventResponse> SendEventAsync(HttpClient client, JsonSerializerOptions jsonOpts, Guid sessionId, TrackingEventRequest payload)
+static async Task<bool> SendEventAsync(HttpClient client, JsonSerializerOptions jsonOpts, Guid sessionId, TrackingEventRequest payload)
 {
-    if (sessionId == Guid.Empty)
-    {
-        // First try the no-session route (API should create session)
-        using var first = await client.PostAsJsonAsync("entities/events", payload, jsonOpts);
-        if (first.IsSuccessStatusCode)
-        {
-            var body = await first.Content.ReadFromJsonAsync<TrackingEventResponse>(jsonOpts);
-            return body ?? throw new InvalidOperationException("Missing event payload");
-        }
-
-        // Fallback: force a session id route if the server does not allow /entities/events
-        var fallbackSessionId = Guid.NewGuid();
-        payload.SessionId = fallbackSessionId;
-        using var second = await client.PostAsJsonAsync($"entities/{fallbackSessionId}/events", payload, jsonOpts);
-        second.EnsureSuccessStatusCode();
-        var fallbackBody = await second.Content.ReadFromJsonAsync<TrackingEventResponse>(jsonOpts);
-        return fallbackBody ?? throw new InvalidOperationException("Missing event payload");
-    }
-
     using var resp = await client.PostAsJsonAsync($"entities/{sessionId}/events", payload, jsonOpts);
     resp.EnsureSuccessStatusCode();
-    var bodyFinal = await resp.Content.ReadFromJsonAsync<TrackingEventResponse>(jsonOpts);
-    return bodyFinal ?? throw new InvalidOperationException("Missing event payload");
+    return true;
 }
 
 static string CreateFakeJwt(Guid companyId, Guid employeeId)
@@ -190,6 +134,7 @@ static string CreateFakeJwt(Guid companyId, Guid employeeId)
 public sealed class TrackingEventRequest
 {
     public Guid SessionId { get; set; }
+    public string Production { get; set; } = "PT";
     public string EventType { get; set; } = string.Empty;
     public string EventName { get; set; } = string.Empty;
     public string PageName { get; set; } = string.Empty;
