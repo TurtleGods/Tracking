@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
@@ -11,11 +12,13 @@ var progress = int.TryParse(Environment.GetEnvironmentVariable("PROGRESS_STEP") 
 var sessionIdEnv = Environment.GetEnvironmentVariable("SESSION_ID");
 
 var companyId = Guid.NewGuid();
+var employeeId = Guid.NewGuid();
+var jwtSecret = Environment.GetEnvironmentVariable("LOAD_TEST_JWT_SECRET") ?? "dev-secret";
 var progressLock = new object();
 
 var jsonOpts = new JsonSerializerOptions(JsonSerializerDefaults.Web); // camelCase for requests
 using var client = new HttpClient { BaseAddress = new Uri(baseUrl) };
-client.DefaultRequestHeaders.Add("Cookie", $"__ModuleSessionCookie={CreateFakeJwtWithCid(companyId)}"); // API extracts cid from this cookie
+client.DefaultRequestHeaders.Add("Cookie", $"__ModuleSessionCookie=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjE2MTBjMTQ1ODdjMGUzY2U0YTk1N2IyMzlhODM3MzIwIn0.eyJpc3MiOiJodHRwczovL3VhdC1hc2lhYXV0aC5tYXlvaHIuY29tL3N0cyIsImlhdCI6MTc2NDU1MzYzNCwiYXVkIjoiNDNmNWJjZGEtZjM0YS00YzA1LTk3ZGMtZTkxZWQxNTI3MzYzIiwibm9uY2UiOiJPVEF6WWprNE5EY3RabVJrT0MwMFl6STFMVGd3TmpRdE16aGtOMll3TURkalpqSXpRRzFoZVc4M056Y3RZVFF6TWpRMVFERTNOalExTlRNMk16UT0iLCJleHAiOjE3NjUxNTg0MzMsIm5iZiI6MTc2NDU1MzYzMywianRpIjoiY2UyOGZlMTRkYWEzNDQ2OTlkMTFjYzdmYmQ3ZWMxZmIiLCJzdWIiOiIwNzcxOTllNWIyMTg0YmM1YjJmMWNjZTBjNDEwYmUyNjgzNTFiOWViYWVlMjQ4MGRiNzAxMzg3OTA4NTkxNjhiIiwiYW1yIjoicHdkIiwiaXBhZGRyIjoiMTAuNDAuMTIuNSIsIm9pZCI6ImNkMzg2YzE2LTE1MmEtNGZjYi1iN2FlLThmMTNhZGM3MWZkNCIsInVpZCI6ImNkMzg2YzE2LTE1MmEtNGZjYi1iN2FlLThmMTNhZGM3MWZkNCIsImlkcCI6Im1heW8gSFJNIiwiZWlkIjoiMzM3NTllYmUtYzk4ZC00MzYxLWEwYTItZTZmMzE0N2U5Y2Y4IiwiY2lkIjoiZGMzNGFmZjYtMmYwYy00OGUwLTk1MTMtZDYyNTE1Yjk2MjViIiwidWJtIjoiTm9uZSIsInJ0IjowLCJzZXAiOjEsInpvbmVpbmZvIjoiKzA4OjAwIiwiaXNGaWRvMlJlZ2lzdGVyZWQiOiIifQ.cx1uqaYJBoqJkcOCQlOTU9YutV8MzwEjP9p6pJYD8t2LFS0FEO_Zr63q1WVrfsFLMI3X05xwVHKHxzAqdW3u1lnjQHb5owqbrlWj2MEcACNONStQNJytuyU-9GLBA4WKgSLskhiOLqRqH-_Mx0axEiViLhGLcP4MmEVA-EPgC6AFnQfgJmIwiAT0IV0NP8VnGG31hd_K00MPhgXNmAGYacorc3oMHIBiM2DIugvmn00rMikD2O_TcGMlAue1u9lXigNIEQFI-yUeDUQazgJFJO72JEaCeG4kgbsCMcrpQkXMzT53G43617VLxWkcM9RxsHc1Y9NCS3Ae8LL3zIqAGA"); // API extracts cid/eid from this cookie
 
 Console.WriteLine($"Base={baseUrl} total={total} concurrency={concurrency}");
 
@@ -35,7 +38,7 @@ if (sessionId == Guid.Empty)
         Timestamp = DateTime.UtcNow,
         Refer = "https://app.local/landing",
         ExposeTime = 0,
-        EmployeeId = Guid.NewGuid(),
+        EmployeeId = employeeId,
         CompanyId = companyId,
         DeviceType = "web",
         OsVersion = "macOS 15",
@@ -78,7 +81,7 @@ var workers = Enumerable.Range(0, concurrency).Select(async _ =>
             Timestamp = DateTime.UtcNow,
             Refer = "https://app.local/landing",
             ExposeTime = Random.Shared.Next(0, 3000),
-            EmployeeId = Guid.NewGuid(),
+            EmployeeId = employeeId,
             CompanyId = companyId,
             DeviceType = "web",
             OsVersion = "macOS 15",
@@ -159,17 +162,23 @@ static async Task<TrackingEventResponse> SendEventAsync(HttpClient client, JsonS
     return bodyFinal ?? throw new InvalidOperationException("Missing event payload");
 }
 
-static string CreateFakeJwtWithCid(Guid companyId)
+static string CreateFakeJwtWithCid(Guid companyId, Guid employeeId, string secretKey)
 {
-    static string B64Url(string json) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json))
+    static string B64Url(ReadOnlySpan<byte> bytes) => Convert.ToBase64String(bytes)
         .TrimEnd('=')
         .Replace('+', '-')
         .Replace('/', '_');
 
-    var header = B64Url("""{""alg"":""none"",""typ"":""JWT""}""");
-    var payloadJson = $"{{\"cid\":\"{companyId}\"}}";
-    var payload = B64Url(payloadJson);
-    return $"{header}.{payload}."; // unsigned token is enough for parsing
+    static string B64UrlJson(string json) => B64Url(System.Text.Encoding.UTF8.GetBytes(json));
+
+    var header = B64UrlJson("""{""alg"":""HS256"",""typ"":""JWT""}""");
+    var payload = B64UrlJson($"{{\"cid\":\"{companyId}\",\"eid\":\"{employeeId}\"}}");
+
+    var signingInput = $"{header}.{payload}";
+    using var hmac = new HMACSHA256(System.Text.Encoding.UTF8.GetBytes(secretKey));
+    var signature = B64Url(hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(signingInput)));
+
+    return $"{signingInput}.{signature}"; // signed token satisfies JwtSecurityTokenHandler
 }
 
 public sealed class TrackingEventRequest
