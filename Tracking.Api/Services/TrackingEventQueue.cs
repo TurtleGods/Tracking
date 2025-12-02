@@ -9,7 +9,7 @@ using Tracking.Api.Requests;
 
 namespace Tracking.Api.Services;
 
-public sealed record TrackingEventCommand(Guid? SessionId, Guid CompanyId, Guid EmployeeId, CreateTrackingEventRequest Request);
+public sealed record TrackingEventCommand(Guid SessionId, Guid CompanyId, Guid EmployeeId, CreateTrackingEventRequest Request);
 
 public interface ITrackingEventQueue
 {
@@ -103,22 +103,16 @@ public sealed class TrackingEventBackgroundService : BackgroundService
         var repository = scope.ServiceProvider.GetRequiredService<ITrackingRepository>();
 
         var production = command.Request.Production;
-        var existingSession = command.SessionId.HasValue && command.SessionId != Guid.Empty
-            ? await repository.GetEventBySessionIdAsync(command.SessionId.Value, cancellationToken)
-            : null;
+        var existingSession = await repository.GetEventBySessionIdAsync(command.SessionId, cancellationToken);
 
         TrackingSession session;
         if (existingSession is null)
         {
             var entity = await GetOrCreateEntityAsync(repository, command.CompanyId, production, cancellationToken);
             var startedAt = command.Request.Timestamp ?? DateTime.UtcNow;
-            var newSessionId = !command.SessionId.HasValue || command.SessionId == Guid.Empty
-                ? Guid.NewGuid()
-                : command.SessionId.Value;
-
             session = new TrackingSession
             {
-                SessionId = newSessionId,
+                SessionId = command.SessionId,
                 EntityId = entity.EntityId,
                 EmployeeId = command.EmployeeId,
                 CompanyId = command.CompanyId,

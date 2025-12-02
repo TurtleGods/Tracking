@@ -45,11 +45,11 @@ curl -X POST http://localhost:8080/sessions \
         }
       }'
 ```
-Create an event:
+Create an event (let the API create the session/entity if needed):
 ```bash
-curl -X POST http://localhost:8080/entities/{entityId}/events \
+curl -X POST http://localhost:8080/entities/events \
   -H "Content-Type: application/json" \
-  -d '{"sessionId":"<session-id>","eventType":"click","eventName":"cta"}'
+  -d '{"production":"PT","eventType":"click","eventName":"cta"}'
 ```
 Health check: `curl http://localhost:8080/health`
 
@@ -67,7 +67,8 @@ docker-compose exec clickhouse clickhouse-client \
 ```
 
 ## Event Queue
-- Event POSTs (`/entities/events` or `/entities/{sessionId}/events`) are queued in-memory and return `202 Accepted` on enqueue; if the queue is full, the API returns `429 Too Many Requests`.
+- Event POSTs (`/entities/events` or `/entities/{sessionId}/events`) are queued in-memory and return `202 Accepted` on enqueue with the `sessionId` used. If the queue is full, the API returns `429 Too Many Requests`.
+- If you omit `sessionId` (or send empty), the API generates one and echoes it in the response so you can reuse it.
 - Queue status endpoint: `GET /entities/events/queue-status` returns `capacity`, `current_depth`, `enqueued`, `dropped`, `processed`, `failed`.
 - Queue is bounded (default 10,000). Requests beyond capacity are dropped and counted as `dropped`.
 

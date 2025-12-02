@@ -29,10 +29,15 @@ public sealed class EventsControllerTests
         var result = await controller.Create(null, request, CancellationToken.None);
 
         var accepted = Assert.IsType<AcceptedResult>(result);
+        var payload = accepted.Value!;
+        var sessionIdProp = payload.GetType().GetProperty("sessionId");
+        Assert.NotNull(sessionIdProp);
+        var sessionId = (Guid)(sessionIdProp!.GetValue(payload) ?? Guid.Empty);
+        Assert.NotEqual(Guid.Empty, sessionId);
         Assert.Single(queue.Commands);
         var command = queue.Commands.Single();
         Assert.Equal(request.EventName, command.Request.EventName);
-        Assert.Null(command.SessionId);
+        Assert.Equal(sessionId, command.SessionId);
     }
 
     [Fact]
@@ -91,7 +96,7 @@ public sealed class EventsControllerTests
 
         var result = await controller.Create(sessionId, request, CancellationToken.None);
 
-        Assert.IsType<AcceptedResult>(result);
+        var accepted = Assert.IsType<AcceptedResult>(result);
         var command = Assert.Single(queue.Commands);
         Assert.Equal(sessionId, command.SessionId);
     }

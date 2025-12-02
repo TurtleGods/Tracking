@@ -68,13 +68,17 @@ public sealed class EventsController : ControllerBase
         {
             return BadRequest("Production code is required.");
         }
-        var enqueued = await _eventQueue.EnqueueAsync(new TrackingEventCommand(sessionId, companyId, employeeId, request), cancellationToken);
+        var effectiveSessionId = sessionId.HasValue && sessionId.Value != Guid.Empty
+            ? sessionId.Value
+            : Guid.NewGuid();
+
+        var enqueued = await _eventQueue.EnqueueAsync(new TrackingEventCommand(effectiveSessionId, companyId, employeeId, request), cancellationToken);
         if (!enqueued)
         {
             return StatusCode(StatusCodes.Status429TooManyRequests, "Event queue is full. Please retry later.");
         }
 
-        return Accepted(new { status = "queued" });
+        return Accepted(new { status = "queued", sessionId = effectiveSessionId });
     }
 
     private static int NormalizeLimit(int limit) => limit switch
