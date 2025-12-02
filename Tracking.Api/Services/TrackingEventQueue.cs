@@ -13,7 +13,7 @@ public sealed record TrackingEventCommand(Guid SessionId, Guid CompanyId, Guid E
 
 public interface ITrackingEventQueue
 {
-    Task<bool> EnqueueAsync(TrackingEventCommand command, CancellationToken cancellationToken);
+    ValueTask<bool> EnqueueAsync(TrackingEventCommand command, CancellationToken cancellationToken);
 }
 
 public sealed class TrackingEventQueue : ITrackingEventQueue
@@ -40,7 +40,7 @@ public sealed class TrackingEventQueue : ITrackingEventQueue
         });
     }
 
-    public Task<bool> EnqueueAsync(TrackingEventCommand command, CancellationToken cancellationToken)
+    public ValueTask<bool> EnqueueAsync(TrackingEventCommand command, CancellationToken cancellationToken)
     {
         var accepted = _channel.Writer.TryWrite(command);
         if (accepted)
@@ -51,7 +51,7 @@ public sealed class TrackingEventQueue : ITrackingEventQueue
         {
             Interlocked.Increment(ref _dropped);
         }
-        return Task.FromResult(accepted);
+        return new ValueTask<bool>(accepted);
     }
 }
 
@@ -61,6 +61,10 @@ public sealed class TrackingEventBackgroundService : BackgroundService
     private readonly ProductionOptions _productionOptions;
     private readonly ILogger<TrackingEventBackgroundService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly int _workerCount;
+    private readonly TimeSpan _batchWindow = TimeSpan.FromMilliseconds(25);
+    private const int MaxBatchSize = 200;
+
     private static readonly string[] DefaultProductionCodes = new[] { "PT", "PY", "FD" };
 
     public TrackingEventBackgroundService(
@@ -73,6 +77,7 @@ public sealed class TrackingEventBackgroundService : BackgroundService
         _scopeFactory = scopeFactory;
         _productionOptions = productionOptions.Value;
         _logger = logger;
+        _workerCount = Math.Clamp(Environment.ProcessorCount, 2, 8);
     }
 
     public long Processed => Interlocked.Read(ref _processed);
@@ -82,11 +87,79 @@ public sealed class TrackingEventBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await foreach (var command in _queue.Reader.ReadAllAsync(stoppingToken))
+        var workers = new Task[_workerCount];
+        for (var i = 0; i < _workerCount; i++)
+        {
+            workers[i] = RunWorkerAsync(stoppingToken);
+        }
+
+        await Task.WhenAll(workers);
+    }
+
+    private async Task RunWorkerAsync(CancellationToken stoppingToken)
+    {
+        var buffer = new List<TrackingEventCommand>(MaxBatchSize);
+        var reader = _queue.Reader;
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            TrackingEventCommand first;
+            try
+            {
+                first = await reader.ReadAsync(stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (ChannelClosedException)
+            {
+                break;
+            }
+
+            buffer.Clear();
+            buffer.Add(first);
+            var deadline = DateTime.UtcNow + _batchWindow;
+
+            while (buffer.Count < MaxBatchSize)
+            {
+                if (reader.TryRead(out var next))
+                {
+                    buffer.Add(next);
+                    continue;
+                }
+
+                var remaining = deadline - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                {
+                    break;
+                }
+
+                var delay = remaining < TimeSpan.FromMilliseconds(5) ? remaining : TimeSpan.FromMilliseconds(5);
+                try
+                {
+                    await Task.Delay(delay, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+
+            await ProcessBatchAsync(buffer, stoppingToken);
+        }
+    }
+
+    private async Task ProcessBatchAsync(IReadOnlyList<TrackingEventCommand> batch, CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<ITrackingRepository>();
+
+        foreach (var command in batch)
         {
             try
             {
-                await ProcessAsync(command, stoppingToken);
+                await ProcessAsync(repository, command, cancellationToken);
                 Interlocked.Increment(ref _processed);
             }
             catch (Exception ex)
@@ -97,11 +170,8 @@ public sealed class TrackingEventBackgroundService : BackgroundService
         }
     }
 
-    private async Task ProcessAsync(TrackingEventCommand command, CancellationToken cancellationToken)
+    private async Task ProcessAsync(ITrackingRepository repository, TrackingEventCommand command, CancellationToken cancellationToken)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ITrackingRepository>();
-
         var production = command.Request.Production;
         var existingSession = await repository.GetEventBySessionIdAsync(command.SessionId, cancellationToken);
 
