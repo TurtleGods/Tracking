@@ -6,22 +6,24 @@ High-level layout (build artifacts `bin/` and `obj/` omitted):
 .
 ├─ Tracking.sln
 ├─ Tracking.Api/
-│  ├─ Program.cs
-│  ├─ Controllers/            # Entities, sessions, events, and health endpoints
-│  ├─ Data/                   # ClickHouse options, connection factory, repository
-│  ├─ Models/                 # DTOs returned by the API
-│  ├─ Requests/               # Request payload contracts
-│  ├─ Properties/             # launchSettings for local debugging
-│  ├─ appsettings*.json       # API configuration (base + Development)
-│  ├─ Dockerfile              # API image build
-│  └─ Tracking.Api.http       # Sample REST calls
+│   |─ Program.cs
+│   ├─ Controllers/            # Entities, sessions, events, and health endpoints
+│   ├─ Data/                   # ClickHouse options, connection factory, repository
+│   ├─ Models/                 # DTOs returned by the API
+│   ├─ Requests/               # Request payload contracts
+│   ├─ Services/               # In-memory event queue + background worker
+│   ├─ Properties/             # launchSettings for local debugging
+│   ├─ appsettings*.json       # API configuration (base + Development)
+│   ├─ Dockerfile              # API image build
+│   └─ Tracking.Api.http       # Sample REST calls
 ├─ Tracking.LoadTester/
-│  ├─ Program.cs              # Console load generator
-│  ├─ Tracking.LoadTester.csproj
-│  └─ README.md               # Usage and env vars
+│   ├─ Program.cs              # Console load generator
+│   ├─ Dockerfile              # Self-contained load-tester image
+│   ├─ Tracking.LoadTester.csproj
+│   └─ README.md               # Usage and env vars
 ├─ db/
-│  ├─ 001_clickhouse_init.sql # Canonical ClickHouse schema
-│  └─ users.d/                # ClickHouse user overrides
+|   ├─ 001_clickhouse_init.sql # Canonical ClickHouse schema
+│   └─ users.d/                # ClickHouse user overrides
 ├─ docker-compose.yaml        # API + ClickHouse stack
 ├─ DBSchema.md                # Schema reference (mirrors DDL)
 ├─ README.md                  # Project overview and quick start
