@@ -66,6 +66,11 @@ docker-compose exec clickhouse clickhouse-client \
   --query "SELECT count() FROM tracking.tracking_events"
 ```
 
+## Event Queue
+- Event POSTs (`/entities/events` or `/entities/{sessionId}/events`) are queued in-memory and return `202 Accepted` on enqueue; if the queue is full, the API returns `429 Too Many Requests`.
+- Queue status endpoint: `GET /entities/events/queue-status` returns `capacity`, `current_depth`, `enqueued`, `dropped`, `processed`, `failed`.
+- Queue is bounded (default 10,000). Requests beyond capacity are dropped and counted as `dropped`.
+
 ## Load Testing
 Use the console load tester in `Tracking.LoadTester` to generate entities, sessions, and a firehose of events.
 ```bash

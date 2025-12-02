@@ -64,6 +64,10 @@ public sealed class EventsController : ControllerBase
         {
             return Unauthorized("Missing or invalid session cookie. Please log in again.");
         }
+        if(request.Production==null)
+        {
+            return BadRequest("Production code is required.");
+        }
         var enqueued = await _eventQueue.EnqueueAsync(new TrackingEventCommand(sessionId, companyId, employeeId, request), cancellationToken);
         if (!enqueued)
         {

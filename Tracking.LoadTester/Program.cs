@@ -9,7 +9,7 @@ using System.Text;
 using Microsoft.IdentityModel.Tokens;
 
 var baseUrl = Environment.GetEnvironmentVariable("TARGET_BASE") ?? "http://localhost:8080";
-var total = int.TryParse(Environment.GetEnvironmentVariable("TOTAL_EVENTS") ?? "10000", out var t) ? t : 100000;
+var total = int.TryParse(Environment.GetEnvironmentVariable("TOTAL_EVENTS") ?? "500000", out var t) ? t : 100000;
 var concurrency = int.TryParse(Environment.GetEnvironmentVariable("CONCURRENCY") ?? "500", out var c) ? c : 64;
 var progress = int.TryParse(Environment.GetEnvironmentVariable("PROGRESS_STEP") ?? "1000", out var p) && p > 0 ? p : 1000;
 var sessionIdEnv = Environment.GetEnvironmentVariable("SESSION_ID");

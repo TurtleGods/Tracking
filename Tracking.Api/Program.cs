@@ -10,6 +10,7 @@ builder.Services.Configure<ClickHouseOptions>(builder.Configuration.GetSection("
 builder.Services.AddSingleton<ClickHouseConnectionFactory>();
 builder.Services.AddScoped<ITrackingRepository, ClickHouseTrackingRepository>();
 builder.Services.Configure<ProductionOptions>(builder.Configuration.GetSection("Productions"));
+builder.Services.Configure<CapacityOptions>(builder.Configuration.GetSection("Capacity"));
 builder.Services.AddSingleton<TrackingEventQueue>();
 builder.Services.AddSingleton<ITrackingEventQueue>(sp => sp.GetRequiredService<TrackingEventQueue>());
 builder.Services.AddSingleton<TrackingEventBackgroundService>();

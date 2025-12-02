@@ -31,7 +31,7 @@ public sealed class TrackingEventQueue : ITrackingEventQueue
     public TrackingEventQueue()
     {
         // Bounded queue to prevent unbounded memory growth under bursty load.
-        Capacity = 10_000;
+        Capacity = 50_0000;
         _channel = Channel.CreateBounded<TrackingEventCommand>(new BoundedChannelOptions(Capacity)
         {
             SingleReader = false,
