@@ -8,14 +8,14 @@ public sealed class FakeTrackingEventQueue : ITrackingEventQueue
     public List<TrackingEventCommand> Commands { get; } = new();
     public bool ShouldReject { get; set; }
 
-    public Task<bool> EnqueueAsync(TrackingEventCommand command, CancellationToken cancellationToken)
+    public ValueTask<bool> EnqueueAsync(TrackingEventCommand command, CancellationToken cancellationToken)
     {
         if (ShouldReject)
         {
-            return Task.FromResult(false);
+            return ValueTask.FromResult(false);
         }
 
         Commands.Add(command);
-        return Task.FromResult(true);
+        return ValueTask.FromResult(true);
     }
 }
