@@ -12,6 +12,7 @@ public sealed class FakeTrackingRepository : ITrackingRepository
     public int LastEntitiesLimit { get; private set; }
     public int LastSessionsLimit { get; private set; }
     public int LastEventsLimit { get; private set; }
+    public DateTime? LastOverviewDateUtc { get; private set; }
     public int DeleteEntityCalls { get; private set; }
     public int DeleteSessionCalls { get; private set; }
 
@@ -72,6 +73,30 @@ public sealed class FakeTrackingRepository : ITrackingRepository
     {
         Events.Add(trackingEvent);
         return Task.CompletedTask;
+    }
+
+    public Task<DailyOverviewMetrics> GetDailyOverviewAsync(DateTime dateUtc, CancellationToken cancellationToken)
+    {
+        var dayStart = DateTime.SpecifyKind(dateUtc.Date, DateTimeKind.Utc);
+        var dayEnd = dayStart.AddDays(1);
+        LastOverviewDateUtc = dayStart;
+
+        var eventsForDay = Events.Where(e => e.Timestamp >= dayStart && e.Timestamp < dayEnd).ToList();
+        var dau = eventsForDay.Select(e => e.EmployeeId).Distinct().Count();
+        var totalEvents = eventsForDay.Count;
+        var activeCompanies = eventsForDay.Select(e => e.CompanyId).Distinct().Count();
+        var sessions = Sessions.Count(s => s.StartedAt >= dayStart && s.StartedAt < dayEnd);
+
+        var metrics = new DailyOverviewMetrics
+        {
+            DateUtc = dayStart,
+            DailyActiveUsers = (ulong)dau,
+            TotalEvents = (ulong)totalEvents,
+            Sessions = (ulong)sessions,
+            ActiveCompanies = (ulong)activeCompanies
+        };
+
+        return Task.FromResult(metrics);
     }
 
     public Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken)

@@ -17,6 +17,7 @@ public interface ITrackingRepository
     Task InsertSessionAsync(TrackingSession session, CancellationToken cancellationToken);
     Task<IEnumerable<TrackingEvent>> GetEventsBySessionAsync(Guid sessionId, int limit, CancellationToken cancellationToken);
     Task InsertEventAsync(TrackingEvent trackingEvent, CancellationToken cancellationToken);
+    Task<DailyOverviewMetrics> GetDailyOverviewAsync(DateTime dateUtc, CancellationToken cancellationToken);
     Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken);
     Task DeleteSessionCascadeAsync(Guid sessionId, CancellationToken cancellationToken);
 }
@@ -420,6 +421,62 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         AddParameter(command, "properties", DbType.String, trackingEvent.Properties);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<DailyOverviewMetrics> GetDailyOverviewAsync(DateTime dateUtc, CancellationToken cancellationToken)
+    {
+        var dayStart = DateTime.SpecifyKind(dateUtc.Date, DateTimeKind.Utc);
+        var dayEnd = dayStart.AddDays(1);
+
+        const string sql = """
+            SELECT
+                dau,
+                total_events,
+                sessions,
+                active_companies
+            FROM
+            (
+                SELECT
+                    uniqExact(employee_id) AS dau,
+                    count() AS total_events,
+                    uniqExact(company_id) AS active_companies
+                FROM tracking_events
+                WHERE timestamp >= @start AND timestamp < @end
+            ) AS events
+            CROSS JOIN
+            (
+                SELECT count() AS sessions
+                FROM tracking_sessions
+                WHERE started_at >= @start AND started_at < @end
+            ) AS sessions;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "start", DbType.DateTime2, dayStart);
+        AddParameter(command, "end", DbType.DateTime2, dayEnd);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new DailyOverviewMetrics
+            {
+                DateUtc = dayStart,
+                DailyActiveUsers = 0,
+                TotalEvents = 0,
+                Sessions = 0,
+                ActiveCompanies = 0
+            };
+        }
+
+        return new DailyOverviewMetrics
+        {
+            DateUtc = dayStart,
+            DailyActiveUsers = reader.GetFieldValue<ulong>(reader.GetOrdinal("dau")),
+            TotalEvents = reader.GetFieldValue<ulong>(reader.GetOrdinal("total_events")),
+            Sessions = reader.GetFieldValue<ulong>(reader.GetOrdinal("sessions")),
+            ActiveCompanies = reader.GetFieldValue<ulong>(reader.GetOrdinal("active_companies"))
+        };
     }
 
     public async Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken)
