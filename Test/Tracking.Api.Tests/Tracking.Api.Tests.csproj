@@ -20,7 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Tracking.Api\Tracking.Api.csproj" />
-    <ProjectReference Include="..\..\Tracking.Api\Tracking.Api.csproj" />
   </ItemGroup>
 
 </Project>
