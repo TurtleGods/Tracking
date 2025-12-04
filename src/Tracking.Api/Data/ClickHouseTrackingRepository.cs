@@ -25,6 +25,12 @@ public interface ITrackingRepository
         string? eventType,
         string? production,
         CancellationToken cancellationToken);
+    Task<IEnumerable<FeatureUsage>> GetFeatureUsageAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        string? eventType,
+        string? production,
+        CancellationToken cancellationToken);
     Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken);
     Task DeleteSessionCascadeAsync(Guid sessionId, CancellationToken cancellationToken);
 }
@@ -536,6 +542,62 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         }
 
         return points;
+    }
+
+    public async Task<IEnumerable<FeatureUsage>> GetFeatureUsageAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        string? eventType,
+        string? production,
+        CancellationToken cancellationToken)
+    {
+        var normalizedStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc);
+        var normalizedEnd = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc);
+        const string sql = """
+            WITH
+                (
+                    SELECT count() AS total_events
+                    FROM tracking_events e
+                    LEFT JOIN main_entities m ON e.entity_id = m.entity_id
+                    WHERE e.timestamp >= @start
+                      AND e.timestamp < @end
+                      AND (@event_type = '' OR e.event_type = @event_type)
+                      AND (@production = '' OR m.production = @production)
+                ) AS total_events
+            SELECT
+                e.event_name,
+                count() AS events,
+                if(total_events = 0, 0.0, round(100.0 * count() / total_events, 2)) AS percentage
+            FROM tracking_events e
+            LEFT JOIN main_entities m ON e.entity_id = m.entity_id
+            WHERE e.timestamp >= @start
+              AND e.timestamp < @end
+              AND (@event_type = '' OR e.event_type = @event_type)
+              AND (@production = '' OR m.production = @production)
+            GROUP BY e.event_name, total_events
+            ORDER BY events DESC, e.event_name ASC;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "start", DbType.DateTime2, normalizedStart);
+        AddParameter(command, "end", DbType.DateTime2, normalizedEnd);
+        AddParameter(command, "event_type", DbType.String, eventType ?? string.Empty);
+        AddParameter(command, "production", DbType.String, production ?? string.Empty);
+
+        var usage = new List<FeatureUsage>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            usage.Add(new FeatureUsage
+            {
+                EventName = reader.GetString(reader.GetOrdinal("event_name")),
+                Count = reader.GetFieldValue<ulong>(reader.GetOrdinal("events")),
+                Percentage = reader.GetDouble(reader.GetOrdinal("percentage"))
+            });
+        }
+
+        return usage;
     }
 
     public async Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken)

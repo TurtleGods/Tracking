@@ -150,4 +150,90 @@ public sealed class AnalyticsControllerTests
         Assert.Null(repository.LastVolumeEventType);
         Assert.Equal("PX", repository.LastVolumeProduction);
     }
+
+    [Fact]
+    public async Task FeatureUsage_ComputesCountsAndPercentages()
+    {
+        var repository = new FakeTrackingRepository();
+        var entityId = Guid.NewGuid();
+        repository.MainEntities.Add(new MainEntity
+        {
+            EntityId = entityId,
+            CompanyId = Guid.NewGuid(),
+            Production = "PX",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+
+        var endUtc = new DateTime(2024, 04, 08, 0, 0, 0, DateTimeKind.Utc);
+        var windowStart = endUtc.AddDays(-7);
+        repository.Events.AddRange(new[]
+        {
+            new TrackingEvent
+            {
+                Id = Guid.NewGuid(),
+                EntityId = entityId,
+                SessionId = Guid.NewGuid(),
+                CompanyId = repository.MainEntities[0].CompanyId,
+                EmployeeId = Guid.NewGuid(),
+                EventType = "click",
+                EventName = "cta",
+                Timestamp = windowStart.AddDays(1)
+            },
+            new TrackingEvent
+            {
+                Id = Guid.NewGuid(),
+                EntityId = entityId,
+                SessionId = Guid.NewGuid(),
+                CompanyId = repository.MainEntities[0].CompanyId,
+                EmployeeId = Guid.NewGuid(),
+                EventType = "click",
+                EventName = "modal_open",
+                Timestamp = windowStart.AddDays(2)
+            },
+            new TrackingEvent
+            {
+                Id = Guid.NewGuid(),
+                EntityId = entityId,
+                SessionId = Guid.NewGuid(),
+                CompanyId = repository.MainEntities[0].CompanyId,
+                EmployeeId = Guid.NewGuid(),
+                EventType = "view",
+                EventName = "ignored_by_type",
+                Timestamp = windowStart.AddDays(3)
+            },
+            new TrackingEvent
+            {
+                Id = Guid.NewGuid(),
+                EntityId = entityId,
+                SessionId = Guid.NewGuid(),
+                CompanyId = repository.MainEntities[0].CompanyId,
+                EmployeeId = Guid.NewGuid(),
+                EventType = "click",
+                EventName = "cta",
+                Timestamp = endUtc.AddDays(1)
+            }
+        });
+
+        var controller = new AnalyticsController(repository);
+
+        var result = await controller.GetFeatureUsage(range: "7d", eventType: "click", production: "PX", endUtc: endUtc, cancellationToken: CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var usage = Assert.IsAssignableFrom<IEnumerable<FeatureUsage>>(ok.Value);
+        var list = usage.ToList();
+
+        Assert.Equal(windowStart, repository.LastUsageStartUtc);
+        Assert.Equal(endUtc, repository.LastUsageEndUtc);
+        Assert.Equal("click", repository.LastUsageEventType);
+        Assert.Equal("PX", repository.LastUsageProduction);
+
+        Assert.Equal(2, list.Count);
+        var cta = Assert.Single(list, u => u.EventName == "cta");
+        Assert.Equal<ulong>(1, cta.Count);
+        Assert.Equal(50.0, cta.Percentage);
+        var modal = Assert.Single(list, u => u.EventName == "modal_open");
+        Assert.Equal<ulong>(1, modal.Count);
+        Assert.Equal(50.0, modal.Percentage);
+    }
 }

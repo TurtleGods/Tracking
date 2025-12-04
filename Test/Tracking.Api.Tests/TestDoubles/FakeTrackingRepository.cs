@@ -19,6 +19,10 @@ public sealed class FakeTrackingRepository : ITrackingRepository
     public TimeSpan? LastVolumeBucket { get; private set; }
     public string? LastVolumeEventType { get; private set; }
     public string? LastVolumeProduction { get; private set; }
+    public DateTime? LastUsageStartUtc { get; private set; }
+    public DateTime? LastUsageEndUtc { get; private set; }
+    public string? LastUsageEventType { get; private set; }
+    public string? LastUsageProduction { get; private set; }
     public int DeleteEntityCalls { get; private set; }
     public int DeleteSessionCalls { get; private set; }
 
@@ -133,5 +137,46 @@ public sealed class FakeTrackingRepository : ITrackingRepository
 
         IEnumerable<EventVolumePoint> points = EventVolumePoints;
         return Task.FromResult(points);
+    }
+
+    public Task<IEnumerable<FeatureUsage>> GetFeatureUsageAsync(DateTime startUtc, DateTime endUtc, string? eventType, string? production, CancellationToken cancellationToken)
+    {
+        LastUsageStartUtc = startUtc;
+        LastUsageEndUtc = endUtc;
+        LastUsageEventType = eventType;
+        LastUsageProduction = production;
+
+        var filtered = Events.Where(e => e.Timestamp >= startUtc && e.Timestamp < endUtc);
+        if (!string.IsNullOrWhiteSpace(eventType))
+        {
+            filtered = filtered.Where(e => e.EventType == eventType);
+        }
+
+        if (!string.IsNullOrWhiteSpace(production))
+        {
+            var matchingEntityIds = MainEntities.Where(me => me.Production == production).Select(me => me.EntityId).ToHashSet();
+            filtered = filtered.Where(e => matchingEntityIds.Contains(e.EntityId));
+        }
+
+        var materialized = filtered.ToList();
+        var total = materialized.Count;
+        if (total == 0)
+        {
+            return Task.FromResult<IEnumerable<FeatureUsage>>(Array.Empty<FeatureUsage>());
+        }
+
+        var usage = materialized
+            .GroupBy(e => e.EventName)
+            .Select(g => new FeatureUsage
+            {
+                EventName = g.Key,
+                Count = (ulong)g.Count(),
+                Percentage = Math.Round(g.Count() * 100.0 / total, 2)
+            })
+            .OrderByDescending(u => u.Count)
+            .ThenBy(u => u.EventName)
+            .ToList();
+
+        return Task.FromResult<IEnumerable<FeatureUsage>>(usage);
     }
 }

@@ -39,6 +39,19 @@ public sealed class AnalyticsController : ControllerBase
         return Ok(points);
     }
 
+    [HttpGet("usage")]
+    public async Task<ActionResult<IEnumerable<FeatureUsage>>> GetFeatureUsage(
+        [FromQuery] string range = "7d",
+        [FromQuery] string? eventType = null,
+        [FromQuery] string? production = null,
+        [FromQuery] DateTime? endUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        var (start, end, _) = NormalizeRange(range, endUtc);
+        var usage = await _repository.GetFeatureUsageAsync(start, end, eventType, production, cancellationToken);
+        return Ok(usage);
+    }
+
     private static (DateTime start, DateTime end, TimeSpan bucket) NormalizeRange(string range, DateTime? endUtc)
     {
         var end = DateTime.SpecifyKind(endUtc ?? DateTime.UtcNow, DateTimeKind.Utc);
