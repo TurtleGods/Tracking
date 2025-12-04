@@ -18,6 +18,13 @@ public interface ITrackingRepository
     Task<IEnumerable<TrackingEvent>> GetEventsBySessionAsync(Guid sessionId, int limit, CancellationToken cancellationToken);
     Task InsertEventAsync(TrackingEvent trackingEvent, CancellationToken cancellationToken);
     Task<DailyOverviewMetrics> GetDailyOverviewAsync(DateTime dateUtc, CancellationToken cancellationToken);
+    Task<IEnumerable<EventVolumePoint>> GetEventVolumeAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        TimeSpan bucket,
+        string? eventType,
+        string? production,
+        CancellationToken cancellationToken);
     Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken);
     Task DeleteSessionCascadeAsync(Guid sessionId, CancellationToken cancellationToken);
 }
@@ -477,6 +484,58 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
             Sessions = reader.GetFieldValue<ulong>(reader.GetOrdinal("sessions")),
             ActiveCompanies = reader.GetFieldValue<ulong>(reader.GetOrdinal("active_companies"))
         };
+    }
+
+    public async Task<IEnumerable<EventVolumePoint>> GetEventVolumeAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        TimeSpan bucket,
+        string? eventType,
+        string? production,
+        CancellationToken cancellationToken)
+    {
+        if (bucket <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bucket), "Bucket must be positive.");
+        }
+
+        var bucketSeconds = (long)bucket.TotalSeconds;
+        var normalizedStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc);
+        var normalizedEnd = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc);
+        const string sql = """
+            SELECT
+                toStartOfInterval(e.timestamp, toIntervalSecond(@bucket_seconds)) AS bucket_start,
+                count() AS events
+            FROM tracking_events e
+            LEFT JOIN main_entities m ON e.entity_id = m.entity_id
+            WHERE e.timestamp >= @start
+              AND e.timestamp < @end
+              AND (@event_type = '' OR e.event_type = @event_type)
+              AND (@production = '' OR m.production = @production)
+            GROUP BY bucket_start
+            ORDER BY bucket_start;
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "bucket_seconds", DbType.Int64, bucketSeconds);
+        AddParameter(command, "start", DbType.DateTime2, normalizedStart);
+        AddParameter(command, "end", DbType.DateTime2, normalizedEnd);
+        AddParameter(command, "event_type", DbType.String, eventType ?? string.Empty);
+        AddParameter(command, "production", DbType.String, production ?? string.Empty);
+
+        var points = new List<EventVolumePoint>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            points.Add(new EventVolumePoint
+            {
+                BucketStartUtc = reader.GetDateTime(reader.GetOrdinal("bucket_start")),
+                Events = reader.GetFieldValue<ulong>(reader.GetOrdinal("events"))
+            });
+        }
+
+        return points;
     }
 
     public async Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken)

@@ -25,4 +25,29 @@ public sealed class AnalyticsController : ControllerBase
         var overview = await _repository.GetDailyOverviewAsync(targetDate, cancellationToken);
         return Ok(overview);
     }
+
+    [HttpGet("event-volume")]
+    public async Task<ActionResult<IEnumerable<EventVolumePoint>>> GetEventVolume(
+        [FromQuery] string range = "24h",
+        [FromQuery] string? eventType = null,
+        [FromQuery] string? production = null,
+        [FromQuery] DateTime? endUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        var (start, end, bucket) = NormalizeRange(range, endUtc);
+        var points = await _repository.GetEventVolumeAsync(start, end, bucket, eventType, production, cancellationToken);
+        return Ok(points);
+    }
+
+    private static (DateTime start, DateTime end, TimeSpan bucket) NormalizeRange(string range, DateTime? endUtc)
+    {
+        var end = DateTime.SpecifyKind(endUtc ?? DateTime.UtcNow, DateTimeKind.Utc);
+        var normalized = string.IsNullOrWhiteSpace(range) ? "24h" : range.Trim().ToLowerInvariant();
+
+        return normalized switch
+        {
+            "7d" or "7day" or "7days" or "7" => (end.AddDays(-7), end, TimeSpan.FromDays(1)),
+            _ => (end.AddHours(-24), end, TimeSpan.FromHours(1))
+        };
+    }
 }

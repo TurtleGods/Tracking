@@ -8,11 +8,17 @@ public sealed class FakeTrackingRepository : ITrackingRepository
     public List<MainEntity> MainEntities { get; } = new();
     public List<TrackingSession> Sessions { get; } = new();
     public List<TrackingEvent> Events { get; } = new();
+    public List<EventVolumePoint> EventVolumePoints { get; } = new();
 
     public int LastEntitiesLimit { get; private set; }
     public int LastSessionsLimit { get; private set; }
     public int LastEventsLimit { get; private set; }
     public DateTime? LastOverviewDateUtc { get; private set; }
+    public DateTime? LastVolumeStartUtc { get; private set; }
+    public DateTime? LastVolumeEndUtc { get; private set; }
+    public TimeSpan? LastVolumeBucket { get; private set; }
+    public string? LastVolumeEventType { get; private set; }
+    public string? LastVolumeProduction { get; private set; }
     public int DeleteEntityCalls { get; private set; }
     public int DeleteSessionCalls { get; private set; }
 
@@ -115,5 +121,17 @@ public sealed class FakeTrackingRepository : ITrackingRepository
         Sessions.RemoveAll(s => s.SessionId == sessionId);
         Events.RemoveAll(e => e.SessionId == sessionId);
         return Task.CompletedTask;
+    }
+
+    public Task<IEnumerable<EventVolumePoint>> GetEventVolumeAsync(DateTime startUtc, DateTime endUtc, TimeSpan bucket, string? eventType, string? production, CancellationToken cancellationToken)
+    {
+        LastVolumeStartUtc = startUtc;
+        LastVolumeEndUtc = endUtc;
+        LastVolumeBucket = bucket;
+        LastVolumeEventType = eventType;
+        LastVolumeProduction = production;
+
+        IEnumerable<EventVolumePoint> points = EventVolumePoints;
+        return Task.FromResult(points);
     }
 }

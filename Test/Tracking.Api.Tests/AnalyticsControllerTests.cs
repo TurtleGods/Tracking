@@ -109,4 +109,45 @@ public sealed class AnalyticsControllerTests
         Assert.Equal(expectedDay, metrics.DateUtc);
         Assert.Equal(expectedDay, repository.LastOverviewDateUtc);
     }
+
+    [Fact]
+    public async Task EventVolume_DefaultsTo24hHourlyBucketsAndPassesFilters()
+    {
+        var repository = new FakeTrackingRepository();
+        var endUtc = new DateTime(2024, 02, 08, 12, 0, 0, DateTimeKind.Utc);
+        repository.EventVolumePoints.Add(new EventVolumePoint
+        {
+            BucketStartUtc = endUtc.AddHours(-1),
+            Events = 10
+        });
+        var controller = new AnalyticsController(repository);
+
+        var result = await controller.GetEventVolume(range: "24h", eventType: "click", production: "PT", endUtc: endUtc, cancellationToken: CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var points = Assert.IsAssignableFrom<IEnumerable<EventVolumePoint>>(ok.Value);
+        Assert.Single(points);
+        Assert.Equal(TimeSpan.FromHours(1), repository.LastVolumeBucket);
+        Assert.Equal(endUtc.AddHours(-24), repository.LastVolumeStartUtc);
+        Assert.Equal(endUtc, repository.LastVolumeEndUtc);
+        Assert.Equal("click", repository.LastVolumeEventType);
+        Assert.Equal("PT", repository.LastVolumeProduction);
+    }
+
+    [Fact]
+    public async Task EventVolume_Uses7DayRangeWithDailyBuckets()
+    {
+        var repository = new FakeTrackingRepository();
+        var endUtc = new DateTime(2024, 03, 10, 0, 0, 0, DateTimeKind.Utc);
+        var controller = new AnalyticsController(repository);
+
+        var result = await controller.GetEventVolume(range: "7d", eventType: null, production: "PX", endUtc: endUtc, cancellationToken: CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result.Result);
+        Assert.Equal(TimeSpan.FromDays(1), repository.LastVolumeBucket);
+        Assert.Equal(endUtc.AddDays(-7), repository.LastVolumeStartUtc);
+        Assert.Equal(endUtc, repository.LastVolumeEndUtc);
+        Assert.Null(repository.LastVolumeEventType);
+        Assert.Equal("PX", repository.LastVolumeProduction);
+    }
 }
