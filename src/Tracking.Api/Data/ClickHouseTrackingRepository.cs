@@ -31,6 +31,11 @@ public interface ITrackingRepository
         string? eventType,
         string? production,
         CancellationToken cancellationToken);
+    Task<IEnumerable<UserActivationFunnelCount>> GetUserActivationFunnelAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        string? production,
+        CancellationToken cancellationToken);
     Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken);
     Task DeleteSessionCascadeAsync(Guid sessionId, CancellationToken cancellationToken);
 }
@@ -598,6 +603,74 @@ public sealed class ClickHouseTrackingRepository : ITrackingRepository
         }
 
         return usage;
+    }
+
+    public async Task<IEnumerable<UserActivationFunnelCount>> GetUserActivationFunnelAsync(
+        DateTime startUtc,
+        DateTime endUtc,
+        string? production,
+        CancellationToken cancellationToken)
+    {
+        var normalizedStart = DateTime.SpecifyKind(startUtc, DateTimeKind.Utc);
+        var normalizedEnd = DateTime.SpecifyKind(endUtc, DateTimeKind.Utc);
+        const string sql = """
+            WITH sessions_in_window AS
+            (
+                SELECT s.session_id, s.entity_id
+                FROM tracking_sessions s
+                LEFT JOIN main_entities m ON s.entity_id = m.entity_id
+                WHERE s.started_at >= @start
+                  AND s.started_at < @end
+                  AND (@production = '' OR m.production = @production)
+            ),
+            first_events AS
+            (
+                SELECT DISTINCT e.session_id
+                FROM tracking_events e
+                INNER JOIN sessions_in_window s ON e.session_id = s.session_id
+                WHERE e.timestamp >= @start
+                  AND e.timestamp < @end
+                  AND lower(e.event_type) IN ('page_view', 'pageview', 'view', 'load', 'page_load')
+            ),
+            meaningful_events AS
+            (
+                SELECT DISTINCT e.session_id
+                FROM tracking_events e
+                INNER JOIN sessions_in_window s ON e.session_id = s.session_id
+                WHERE e.timestamp >= @start
+                  AND e.timestamp < @end
+                  AND lower(e.event_type) = 'click'
+            )
+            SELECT stage, sessions
+            FROM
+            (
+                SELECT 'session_start' AS stage, count() AS sessions FROM sessions_in_window
+                UNION ALL
+                SELECT 'first_event' AS stage, count() FROM first_events
+                UNION ALL
+                SELECT 'meaningful_event' AS stage, count() FROM meaningful_events
+            )
+            ORDER BY indexOf(['session_start', 'first_event', 'meaningful_event'], stage);
+            """;
+
+        await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        await using var command = CreateCommand(connection, sql);
+        AddParameter(command, "start", DbType.DateTime2, normalizedStart);
+        AddParameter(command, "end", DbType.DateTime2, normalizedEnd);
+        AddParameter(command, "production", DbType.String, production ?? string.Empty);
+
+        var steps = new List<UserActivationFunnelCount>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            steps.Add(new UserActivationFunnelCount
+            {
+                Stage = reader.GetString(reader.GetOrdinal("stage")),
+                Sessions = reader.GetFieldValue<ulong>(reader.GetOrdinal("sessions"))
+            });
+        }
+
+        return steps;
     }
 
     public async Task DeleteEntityCascadeAsync(Guid entityId, CancellationToken cancellationToken)

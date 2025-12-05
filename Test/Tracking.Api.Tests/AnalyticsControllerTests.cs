@@ -236,4 +236,146 @@ public sealed class AnalyticsControllerTests
         Assert.Equal<ulong>(1, modal.Count);
         Assert.Equal(50.0, modal.Percentage);
     }
+
+    [Fact]
+    public async Task UserActivationFunnel_ComputesCountsAndConversions()
+    {
+        var repository = new FakeTrackingRepository();
+        var production = "PT";
+        var entityId = Guid.NewGuid();
+        var otherEntityId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
+        var endUtc = new DateTime(2024, 05, 01, 0, 0, 0, DateTimeKind.Utc);
+        var windowStart = endUtc.AddDays(-7);
+
+        repository.MainEntities.AddRange(new[]
+        {
+            new MainEntity
+            {
+                EntityId = entityId,
+                CompanyId = companyId,
+                Production = production,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            },
+            new MainEntity
+            {
+                EntityId = otherEntityId,
+                CompanyId = companyId,
+                Production = "PX",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            }
+        });
+
+        var sessionWithoutEvents = new TrackingSession
+        {
+            SessionId = Guid.NewGuid(),
+            EntityId = entityId,
+            CompanyId = companyId,
+            EmployeeId = Guid.NewGuid(),
+            StartedAt = windowStart.AddHours(1),
+            LastActivityAt = windowStart.AddHours(1),
+            CreatedAt = windowStart.AddHours(1)
+        };
+        var sessionWithView = new TrackingSession
+        {
+            SessionId = Guid.NewGuid(),
+            EntityId = entityId,
+            CompanyId = companyId,
+            EmployeeId = Guid.NewGuid(),
+            StartedAt = windowStart.AddHours(2),
+            LastActivityAt = windowStart.AddHours(2),
+            CreatedAt = windowStart.AddHours(2)
+        };
+        var sessionWithClick = new TrackingSession
+        {
+            SessionId = Guid.NewGuid(),
+            EntityId = entityId,
+            CompanyId = companyId,
+            EmployeeId = Guid.NewGuid(),
+            StartedAt = windowStart.AddHours(3),
+            LastActivityAt = windowStart.AddHours(3),
+            CreatedAt = windowStart.AddHours(3)
+        };
+        var sessionOtherProduction = new TrackingSession
+        {
+            SessionId = Guid.NewGuid(),
+            EntityId = otherEntityId,
+            CompanyId = companyId,
+            EmployeeId = Guid.NewGuid(),
+            StartedAt = windowStart.AddHours(4),
+            LastActivityAt = windowStart.AddHours(4),
+            CreatedAt = windowStart.AddHours(4)
+        };
+
+        repository.Sessions.AddRange(new[]
+        {
+            sessionWithoutEvents,
+            sessionWithView,
+            sessionWithClick,
+            sessionOtherProduction
+        });
+
+        repository.Events.AddRange(new[]
+        {
+            new TrackingEvent
+            {
+                Id = Guid.NewGuid(),
+                EntityId = entityId,
+                SessionId = sessionWithView.SessionId,
+                CompanyId = companyId,
+                EmployeeId = sessionWithView.EmployeeId,
+                EventType = "page_view",
+                EventName = "landing",
+                Timestamp = windowStart.AddHours(2)
+            },
+            new TrackingEvent
+            {
+                Id = Guid.NewGuid(),
+                EntityId = entityId,
+                SessionId = sessionWithClick.SessionId,
+                CompanyId = companyId,
+                EmployeeId = sessionWithClick.EmployeeId,
+                EventType = "click",
+                EventName = "cta",
+                Timestamp = windowStart.AddHours(3)
+            },
+            new TrackingEvent
+            {
+                Id = Guid.NewGuid(),
+                EntityId = otherEntityId,
+                SessionId = sessionOtherProduction.SessionId,
+                CompanyId = companyId,
+                EmployeeId = sessionOtherProduction.EmployeeId,
+                EventType = "click",
+                EventName = "other",
+                Timestamp = windowStart.AddHours(4)
+            }
+        });
+
+        var controller = new AnalyticsController(repository);
+
+        var result = await controller.GetUserActivationFunnel(range: "7d", production: production, endUtc: endUtc, cancellationToken: CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var steps = Assert.IsAssignableFrom<IEnumerable<UserActivationFunnelStep>>(ok.Value).ToList();
+
+        Assert.Equal(windowStart, repository.LastFunnelStartUtc);
+        Assert.Equal(endUtc, repository.LastFunnelEndUtc);
+        Assert.Equal(production, repository.LastFunnelProduction);
+
+        Assert.Equal(3, steps.Count);
+        Assert.Equal(UserActivationFunnelStages.SessionStart, steps[0].Stage);
+        Assert.Equal<ulong>(3, steps[0].Sessions);
+        Assert.Equal(100.0, steps[0].ConversionFromPrevious);
+
+        Assert.Equal(UserActivationFunnelStages.FirstEvent, steps[1].Stage);
+        Assert.Equal<ulong>(1, steps[1].Sessions);
+        Assert.Equal(33.33, steps[1].ConversionFromPrevious);
+
+        Assert.Equal(UserActivationFunnelStages.MeaningfulEvent, steps[2].Stage);
+        Assert.Equal<ulong>(1, steps[2].Sessions);
+        Assert.Equal(100.0, steps[2].ConversionFromPrevious);
+    }
 }

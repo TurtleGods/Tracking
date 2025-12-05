@@ -23,6 +23,9 @@ public sealed class FakeTrackingRepository : ITrackingRepository
     public DateTime? LastUsageEndUtc { get; private set; }
     public string? LastUsageEventType { get; private set; }
     public string? LastUsageProduction { get; private set; }
+    public DateTime? LastFunnelStartUtc { get; private set; }
+    public DateTime? LastFunnelEndUtc { get; private set; }
+    public string? LastFunnelProduction { get; private set; }
     public int DeleteEntityCalls { get; private set; }
     public int DeleteSessionCalls { get; private set; }
 
@@ -178,5 +181,57 @@ public sealed class FakeTrackingRepository : ITrackingRepository
             .ToList();
 
         return Task.FromResult<IEnumerable<FeatureUsage>>(usage);
+    }
+
+    public Task<IEnumerable<UserActivationFunnelCount>> GetUserActivationFunnelAsync(DateTime startUtc, DateTime endUtc, string? production, CancellationToken cancellationToken)
+    {
+        LastFunnelStartUtc = startUtc;
+        LastFunnelEndUtc = endUtc;
+        LastFunnelProduction = production;
+
+        IEnumerable<TrackingSession> scopedSessions = Sessions.Where(s => s.StartedAt >= startUtc && s.StartedAt < endUtc);
+        if (!string.IsNullOrWhiteSpace(production))
+        {
+            var matchingEntityIds = MainEntities.Where(me => me.Production == production).Select(me => me.EntityId).ToHashSet();
+            scopedSessions = scopedSessions.Where(s => matchingEntityIds.Contains(s.EntityId));
+        }
+
+        var sessionIds = scopedSessions.Select(s => s.SessionId).ToHashSet();
+        var scopedEvents = Events.Where(e => sessionIds.Contains(e.SessionId) && e.Timestamp >= startUtc && e.Timestamp < endUtc).ToList();
+
+        var firstEventSessions = scopedEvents.Where(e => IsFirstEventType(e.EventType)).Select(e => e.SessionId).Distinct().Count();
+        var meaningfulSessions = scopedEvents.Where(e => IsMeaningfulEventType(e.EventType)).Select(e => e.SessionId).Distinct().Count();
+
+        var steps = new[]
+        {
+            new UserActivationFunnelCount
+            {
+                Stage = UserActivationFunnelStages.SessionStart,
+                Sessions = (ulong)sessionIds.Count
+            },
+            new UserActivationFunnelCount
+            {
+                Stage = UserActivationFunnelStages.FirstEvent,
+                Sessions = (ulong)firstEventSessions
+            },
+            new UserActivationFunnelCount
+            {
+                Stage = UserActivationFunnelStages.MeaningfulEvent,
+                Sessions = (ulong)meaningfulSessions
+            }
+        };
+
+        return Task.FromResult<IEnumerable<UserActivationFunnelCount>>(steps);
+    }
+
+    private static bool IsFirstEventType(string eventType)
+    {
+        var normalized = eventType.ToLowerInvariant();
+        return normalized is "page_view" or "pageview" or "view" or "load" or "page_load";
+    }
+
+    private static bool IsMeaningfulEventType(string eventType)
+    {
+        return string.Equals(eventType, "click", StringComparison.OrdinalIgnoreCase);
     }
 }
